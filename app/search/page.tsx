@@ -181,8 +181,8 @@ export default function SearchPage() {
         {messages.map((msg, i) => (
           <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
             {msg.role === 'assistant' && mode === 'advice' && (
-              <div className="w-8 h-8 rounded-full bg-[#e8ddd4] flex items-center justify-center text-sm shrink-0 mr-2 mt-0.5">
-                🌿
+              <div className="w-8 h-8 rounded-full overflow-hidden shrink-0 mr-2 mt-0.5">
+                <img src="/aqua.png" alt="AQUA" className="w-full h-full object-cover" />
               </div>
             )}
             <div
