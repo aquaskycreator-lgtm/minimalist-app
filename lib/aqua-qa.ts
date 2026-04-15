@@ -655,7 +655,7 @@ export const QA_LIST: QAItem[] = [
   },
 ]
 
-const FALLBACK = '少し違う言い方で聞いてみてください😊\n「捨てられない」「続かない」「どこから始める」「服が多い」「冷蔵庫を整理したい」など、気になることを話しかけてください✨'
+export const FALLBACK = '少し違う言い方で聞いてみてください😊\n「捨てられない」「続かない」「どこから始める」「服が多い」「冷蔵庫を整理したい」など、気になることを話しかけてください✨'
 
 export function findAnswer(query: string): string {
   // 正規化: スペース除去、全角→半角

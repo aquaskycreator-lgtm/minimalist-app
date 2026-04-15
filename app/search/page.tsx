@@ -5,12 +5,16 @@ export const dynamic = 'force-dynamic'
 import { useState, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
-import { findAnswer } from '@/lib/aqua-qa'
+import { findAnswer, FALLBACK } from '@/lib/aqua-qa'
 import BottomNav from '@/components/BottomNav'
+
+const ADMIN_EMAIL = 'aqua.sky.creator@gmail.com'
 
 type Message = {
   role: 'user' | 'assistant'
   text: string
+  isFallback?: boolean
+  query?: string
 }
 
 type Mode = 'inventory' | 'advice'
@@ -35,17 +39,25 @@ export default function SearchPage() {
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
   const [listening, setListening] = useState(false)
+  const [isAdmin, setIsAdmin] = useState(false)
+  const [addingForQuery, setAddingForQuery] = useState<string | null>(null)
+  const [newKeywords, setNewKeywords] = useState('')
+  const [newAnswer, setNewAnswer] = useState('')
+  const [saving, setSaving] = useState(false)
   const bottomRef = useRef<HTMLDivElement>(null)
   const recognitionRef = useRef<any>(null)
   const router = useRouter()
   const supabase = createClient()
 
   const messages = mode === 'inventory' ? inventoryMessages : adviceMessages
-  const setMessages = mode === 'inventory' ? setInventoryMessages : setAdviceMessages
+  const setMessages = mode === 'inventory'
+    ? (fn: (prev: Message[]) => Message[]) => setInventoryMessages(fn)
+    : (fn: (prev: Message[]) => Message[]) => setAdviceMessages(fn)
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => {
-      if (!user) router.push('/auth')
+      if (!user) { router.push('/auth'); return }
+      setIsAdmin(user.email === ADMIN_EMAIL)
     })
   }, [supabase, router])
 
@@ -81,19 +93,82 @@ export default function SearchPage() {
     setListening(false)
   }
 
+  async function findCustomAnswer(query: string): Promise<string | null> {
+    const { data } = await supabase.from('custom_qa').select('keywords, answer')
+    if (!data || data.length === 0) return null
+
+    const normalized = query.replace(/\s/g, '').toLowerCase()
+    let bestScore = 0
+    let bestAnswer: string | null = null
+
+    for (const row of data) {
+      const keywords = row.keywords.split(',').map((k: string) => k.trim())
+      let score = 0
+      for (const kw of keywords) {
+        const k = kw.replace(/\s/g, '').toLowerCase()
+        if (k && normalized.includes(k)) score += k.length
+      }
+      if (score > bestScore) {
+        bestScore = score
+        bestAnswer = row.answer
+      }
+    }
+
+    return bestScore > 0 ? bestAnswer : null
+  }
+
   async function handleSend() {
     const q = input.trim()
     if (!q || loading) return
     setMessages(prev => [...prev, { role: 'user', text: q }])
     setInput('')
     setLoading(true)
+    setAddingForQuery(null)
 
-    const reply = mode === 'inventory'
-      ? await searchInventory(q)
-      : findAnswer(q)
+    let reply: string
+    let isFallback = false
 
-    setMessages(prev => [...prev, { role: 'assistant', text: reply }])
+    if (mode === 'inventory') {
+      reply = await searchInventory(q)
+    } else {
+      const staticReply = findAnswer(q)
+      if (staticReply === FALLBACK) {
+        const custom = await findCustomAnswer(q)
+        if (custom) {
+          reply = custom
+        } else {
+          reply = FALLBACK
+          isFallback = true
+        }
+      } else {
+        reply = staticReply
+      }
+    }
+
+    setMessages(prev => [...prev, { role: 'assistant', text: reply, isFallback, query: q }])
     setLoading(false)
+  }
+
+  async function handleSaveCustom(query: string) {
+    if (!newKeywords.trim() || !newAnswer.trim()) return
+    setSaving(true)
+
+    await supabase.from('custom_qa').insert({
+      keywords: newKeywords.trim(),
+      answer: newAnswer.trim(),
+    })
+
+    // チャット内のfallbackメッセージを更新
+    setAdviceMessages(prev => prev.map(msg =>
+      msg.isFallback && msg.query === query
+        ? { ...msg, text: newAnswer.trim(), isFallback: false }
+        : msg
+    ))
+
+    setAddingForQuery(null)
+    setNewKeywords('')
+    setNewAnswer('')
+    setSaving(false)
   }
 
   async function searchInventory(query: string): Promise<string> {
@@ -154,7 +229,17 @@ export default function SearchPage() {
     <div className="min-h-screen w-full max-w-md mx-auto flex flex-col pb-20">
       {/* ヘッダー */}
       <div className="sticky top-0 bg-[#faf9f7] pt-6 px-4 pb-3 z-10">
-        <h1 className="text-lg font-medium text-[#3d3530] mb-3">相談</h1>
+        <div className="flex items-center justify-between mb-3">
+          <h1 className="text-lg font-medium text-[#3d3530]">相談</h1>
+          {isAdmin && (
+            <button
+              onClick={() => router.push('/admin/qa')}
+              className="text-xs text-[#8b7355] bg-[#f5f0eb] px-3 py-1.5 rounded-full"
+            >
+              Q&A管理
+            </button>
+          )}
+        </div>
         {/* モード切り替え */}
         <div className="flex bg-[#f0ebe5] rounded-2xl p-1">
           <button
@@ -179,21 +264,84 @@ export default function SearchPage() {
       {/* メッセージ一覧 */}
       <div className="flex-1 px-4 space-y-3 pt-2">
         {messages.map((msg, i) => (
-          <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-            {msg.role === 'assistant' && mode === 'advice' && (
-              <div className="w-8 h-8 rounded-full overflow-hidden shrink-0 mr-2 mt-0.5">
-                <img src="/aqua.png" alt="AQUA" className="w-full h-full object-cover" />
+          <div key={i}>
+            <div className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+              {msg.role === 'assistant' && mode === 'advice' && (
+                <div className="w-8 h-8 rounded-full overflow-hidden shrink-0 mr-2 mt-0.5">
+                  <img src="/aqua.png" alt="AQUA" className="w-full h-full object-cover" />
+                </div>
+              )}
+              <div
+                className={`max-w-[80%] px-4 py-3 rounded-2xl text-sm leading-relaxed whitespace-pre-line ${
+                  msg.role === 'user'
+                    ? 'bg-[#8b7355] text-white rounded-br-sm'
+                    : 'bg-white text-[#3d3530] shadow-sm rounded-bl-sm'
+                }`}
+              >
+                {msg.text}
+              </div>
+            </div>
+
+            {/* 管理者向け：回答を追加ボタン */}
+            {isAdmin && msg.role === 'assistant' && msg.isFallback && mode === 'advice' && (
+              <div className="ml-10 mt-2">
+                {addingForQuery === msg.query ? (
+                  <div className="bg-[#fdf8f3] rounded-2xl p-4 border border-[#ede5d8]">
+                    <p className="text-xs font-medium text-[#6b5f58] mb-3">回答を登録する</p>
+                    <div className="space-y-2 mb-3">
+                      <div>
+                        <label className="text-[10px] text-[#9c8f87] block mb-1">
+                          キーワード（カンマ区切り）
+                        </label>
+                        <input
+                          type="text"
+                          value={newKeywords}
+                          onChange={e => setNewKeywords(e.target.value)}
+                          placeholder="例：断捨離, 手放せない, 捨てられない"
+                          className="w-full px-3 py-2 rounded-xl border border-[#e8e0d8] text-xs text-[#3d3530] focus:outline-none focus:ring-1 focus:ring-[#b8a99a] placeholder-[#c5b8b0]"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[10px] text-[#9c8f87] block mb-1">回答</label>
+                        <textarea
+                          value={newAnswer}
+                          onChange={e => setNewAnswer(e.target.value)}
+                          placeholder="AQUAとして回答を入力してください"
+                          rows={3}
+                          className="w-full px-3 py-2 rounded-xl border border-[#e8e0d8] text-xs text-[#3d3530] focus:outline-none focus:ring-1 focus:ring-[#b8a99a] placeholder-[#c5b8b0] resize-none"
+                        />
+                      </div>
+                    </div>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => { setAddingForQuery(null); setNewKeywords(''); setNewAnswer('') }}
+                        className="flex-1 py-2 rounded-xl bg-[#f0ebe5] text-[#6b5f58] text-xs"
+                      >
+                        キャンセル
+                      </button>
+                      <button
+                        onClick={() => handleSaveCustom(msg.query!)}
+                        disabled={saving || !newKeywords.trim() || !newAnswer.trim()}
+                        className="flex-1 py-2 rounded-xl bg-[#8b7355] text-white text-xs disabled:opacity-50"
+                      >
+                        {saving ? '保存中...' : '保存する'}
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => {
+                      setAddingForQuery(msg.query ?? '')
+                      setNewKeywords(msg.query ?? '')
+                      setNewAnswer('')
+                    }}
+                    className="text-xs text-[#8b7355] bg-[#fdf5ec] px-3 py-1.5 rounded-full border border-[#e8d8b8]"
+                  >
+                    + この質問に回答を追加する
+                  </button>
+                )}
               </div>
             )}
-            <div
-              className={`max-w-[80%] px-4 py-3 rounded-2xl text-sm leading-relaxed whitespace-pre-line ${
-                msg.role === 'user'
-                  ? 'bg-[#8b7355] text-white rounded-br-sm'
-                  : 'bg-white text-[#3d3530] shadow-sm rounded-bl-sm'
-              }`}
-            >
-              {msg.text}
-            </div>
           </div>
         ))}
         {loading && (
