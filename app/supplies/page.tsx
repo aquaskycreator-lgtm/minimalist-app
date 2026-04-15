@@ -82,32 +82,30 @@ export default function SuppliesPage() {
       {/* ヘッダー */}
       <div className="sticky top-0 bg-[#faf9f7] pt-6 pb-4 z-10">
         <div className="flex items-center justify-between mb-3">
-          <div>
-            <h1 className="text-lg font-medium text-[#3d3530]">日用品</h1>
-            <p className="text-xs text-[#9c8f87]">{items.length}アイテム</p>
-          </div>
-          <div className="flex items-center gap-2">
-            {(outOfStock > 0 || lowStock > 0) && (
-              <>
-                {outOfStock > 0 && (
-                  <span className="text-xs px-2.5 py-1 rounded-full bg-[#f5d5c8] text-[#7a3f30]">
-                    切れた {outOfStock}
-                  </span>
-                )}
-                {lowStock > 0 && (
-                  <span className="text-xs px-2.5 py-1 rounded-full bg-[#f5ecd0] text-[#7a6130]">
-                    残り少 {lowStock}
-                  </span>
-                )}
-              </>
-            )}
+          <div className="flex items-center gap-3">
+            <div>
+              <h1 className="text-lg font-medium text-[#3d3530]">日用品</h1>
+              <p className="text-xs text-[#9c8f87]">{items.length}アイテム</p>
+            </div>
             {(outOfStock > 0 || lowStock > 0) && (
               <button
                 onClick={() => setShowShopping(true)}
-                className="flex items-center gap-1 px-3 py-1 rounded-full bg-[#8b7355] text-white text-xs"
+                className="flex items-center gap-1 px-3 py-1.5 rounded-full bg-[#8b7355] text-white text-xs shrink-0"
               >
                 🛒 買い物リスト
               </button>
+            )}
+          </div>
+          <div className="flex items-center gap-2">
+            {outOfStock > 0 && (
+              <span className="text-xs px-2.5 py-1 rounded-full bg-[#f5d5c8] text-[#7a3f30]">
+                切れた {outOfStock}
+              </span>
+            )}
+            {lowStock > 0 && (
+              <span className="text-xs px-2.5 py-1 rounded-full bg-[#f5ecd0] text-[#7a6130]">
+                残り少 {lowStock}
+              </span>
             )}
           </div>
         </div>

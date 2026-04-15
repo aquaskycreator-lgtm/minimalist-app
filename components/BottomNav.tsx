@@ -7,7 +7,7 @@ export default function BottomNav() {
   const router = useRouter()
 
   const items = [
-    { href: '/fridge',    label: '冷蔵庫',  icon: '🧊' },
+    { href: '/fridge',    label: '食料品',  icon: '🥗' },
     { href: '/supplies',  label: '日用品',  icon: '🧴' },
     { href: '/closet',    label: '洋服',    icon: '👗' },
     { href: '/search',    label: '相談',    icon: '💬' },

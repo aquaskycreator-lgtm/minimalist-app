@@ -17,6 +17,7 @@ export type FridgeItem = {
   quantity: string
   expiry_date: string | null
   memo: string | null
+  need_to_buy: boolean
   created_at: string
 }
 

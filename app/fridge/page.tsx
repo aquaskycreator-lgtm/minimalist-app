@@ -7,6 +7,7 @@ import { createClient } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
 import { FridgeItem, CATEGORIES, Category } from '@/lib/types'
 import AddItemModal from '@/components/AddItemModal'
+import FoodShoppingListModal from '@/components/FoodShoppingListModal'
 import BottomNav from '@/components/BottomNav'
 import { getTodayQuote } from '@/lib/aqua-quotes'
 
@@ -32,6 +33,7 @@ export default function FridgePage() {
   const [loading, setLoading] = useState(true)
   const [selectedCategory, setSelectedCategory] = useState<Category | 'すべて'>('すべて')
   const [showModal, setShowModal] = useState(false)
+  const [showShopping, setShowShopping] = useState(false)
   const [userEmail, setUserEmail] = useState('')
   const [deviation, setDeviation] = useState<number | null>(null)
   const router = useRouter()
@@ -73,6 +75,11 @@ export default function FridgePage() {
     setItems(prev => prev.filter(item => item.id !== id))
   }
 
+  async function toggleNeedToBuy(id: string, current: boolean) {
+    await supabase.from('fridge_items').update({ need_to_buy: !current }).eq('id', id)
+    setItems(prev => prev.map(item => item.id === id ? { ...item, need_to_buy: !current } : item))
+  }
+
   async function handleSignOut() {
     await supabase.auth.signOut()
     router.push('/auth')
@@ -95,9 +102,19 @@ export default function FridgePage() {
       {/* ヘッダー */}
       <div className="sticky top-0 bg-[#faf9f7] pt-6 pb-4 z-10">
         <div className="flex items-center justify-between mb-3">
-          <div>
-            <h1 className="text-lg font-medium text-[#3d3530]">冷蔵庫</h1>
-            <p className="text-xs text-[#9c8f87]">{userEmail}</p>
+          <div className="flex items-center gap-3">
+            <div>
+              <h1 className="text-lg font-medium text-[#3d3530]">食料品</h1>
+              <p className="text-xs text-[#9c8f87]">{userEmail}</p>
+            </div>
+            {items.some(i => i.need_to_buy) && (
+              <button
+                onClick={() => setShowShopping(true)}
+                className="flex items-center gap-1 px-3 py-1.5 rounded-full bg-[#8b7355] text-white text-xs shrink-0"
+              >
+                🛒 買い物リスト
+              </button>
+            )}
           </div>
           <button
             onClick={handleSignOut}
@@ -189,12 +206,24 @@ export default function FridgePage() {
                     {item.memo && <span className="truncate">{item.memo}</span>}
                   </div>
                 </div>
-                <button
-                  onClick={() => deleteItem(item.id)}
-                  className="text-[#c5b8b0] hover:text-[#9c8f87] transition-colors shrink-0 text-lg leading-none"
-                >
-                  ×
-                </button>
+                <div className="flex items-center gap-2 shrink-0">
+                  <button
+                    onClick={() => toggleNeedToBuy(item.id, item.need_to_buy)}
+                    className={`text-xs px-2 py-1 rounded-full transition-all ${
+                      item.need_to_buy
+                        ? 'bg-[#8b7355] text-white'
+                        : 'bg-[#f0ebe5] text-[#9c8f87]'
+                    }`}
+                  >
+                    🛒
+                  </button>
+                  <button
+                    onClick={() => deleteItem(item.id)}
+                    className="text-[#c5b8b0] hover:text-[#9c8f87] transition-colors text-lg leading-none"
+                  >
+                    ×
+                  </button>
+                </div>
               </div>
             )
           })}
@@ -208,6 +237,14 @@ export default function FridgePage() {
       >
         +
       </button>
+
+      {showShopping && (
+        <FoodShoppingListModal
+          items={items}
+          onClose={() => setShowShopping(false)}
+          onUpdated={fetchItems}
+        />
+      )}
 
       {/* 追加モーダル */}
       {showModal && (
