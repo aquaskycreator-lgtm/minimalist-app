@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { createClient } from '@/lib/supabase'
 import { SUPPLY_CATEGORIES, SUPPLY_STATUSES, SupplyCategory, SupplyStatus } from '@/lib/types'
 
@@ -15,6 +15,41 @@ const STATUS_COLORS: Record<SupplyStatus, string> = {
   '切れた':     'bg-[#f5d5c8] text-[#7a3f30]',
 }
 
+const CATEGORY_KEYWORDS: Record<SupplyCategory, string[]> = {
+  'トイレ用品':       ['トイレ', 'トイレットペーパー', 'トイレシート', 'トイレ用'],
+  '洗濯・洗剤':       ['洗剤', '柔軟剤', '洗濯', '漂白剤', '洗濯洗剤'],
+  'バス・シャンプー':  ['シャンプー', 'コンディショナー', 'リンス', 'ボディソープ', 'バスソープ', '石鹸', '石けん'],
+  'スキンケア':        ['化粧水', '乳液', 'クリーム', '日焼け止め', '洗顔', 'スキンケア', 'ファンデ', '美容'],
+  '薬・衛生用品':      ['薬', '絆創膏', 'マスク', '消毒', '綿棒', '体温計', '薬局'],
+  'その他':            [],
+}
+
+function detectCategory(name: string): SupplyCategory {
+  for (const [cat, keywords] of Object.entries(CATEGORY_KEYWORDS)) {
+    if (keywords.some(k => name.includes(k))) return cat as SupplyCategory
+  }
+  return 'その他'
+}
+
+function extractQuantity(text: string): string {
+  const match = text.match(/(\d+(?:\.\d+)?)\s*(個|本|袋|パック|枚|箱|缶|瓶|束|ロール|セット|g|kg|ml|L)/)
+  if (match) return `${match[1]}${match[2]}`
+  return '1個'
+}
+
+function detectStatus(text: string): SupplyStatus {
+  if (text.includes('切れた') || text.includes('なくなった') || text.includes('切れ')) return '切れた'
+  if (text.includes('残り少') || text.includes('少ない') || text.includes('もうすぐ')) return '残り少ない'
+  return '在庫あり'
+}
+
+function extractName(text: string): string {
+  return text
+    .replace(/(\d+(?:\.\d+)?)\s*(個|本|袋|パック|枚|箱|缶|瓶|束|ロール|セット|g|kg|ml|L)/g, '')
+    .replace(/切れた|なくなった|切れ|残り少|少ない|もうすぐ|在庫あり|[、。,.\s]+/g, '')
+    .trim()
+}
+
 export default function AddSuppliesModal({ onClose, onAdded }: Props) {
   const [name, setName] = useState('')
   const [category, setCategory] = useState<SupplyCategory>('その他')
@@ -22,7 +57,45 @@ export default function AddSuppliesModal({ onClose, onAdded }: Props) {
   const [status, setStatus] = useState<SupplyStatus>('在庫あり')
   const [memo, setMemo] = useState('')
   const [loading, setLoading] = useState(false)
+  const [listening, setListening] = useState(false)
+  const [transcript, setTranscript] = useState('')
+  const recognitionRef = useRef<any>(null)
   const supabase = createClient()
+
+  function startVoice() {
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
+    if (!SpeechRecognition) {
+      alert('お使いのブラウザは音声入力に対応していません。Chromeをお使いください。')
+      return
+    }
+    const recognition = new SpeechRecognition()
+    recognition.lang = 'ja-JP'
+    recognition.continuous = false
+    recognition.interimResults = false
+    recognitionRef.current = recognition
+
+    recognition.onstart = () => setListening(true)
+    recognition.onend   = () => setListening(false)
+    recognition.onresult = (event: any) => {
+      const text = event.results[0][0].transcript
+      setTranscript(text)
+      const detectedName = extractName(text)
+      if (detectedName) setName(detectedName)
+      setQuantity(extractQuantity(text))
+      setStatus(detectStatus(text))
+      setCategory(detectCategory(detectedName))
+    }
+    recognition.onerror = () => {
+      setListening(false)
+      alert('音声認識に失敗しました。もう一度お試しください。')
+    }
+    recognition.start()
+  }
+
+  function stopVoice() {
+    recognitionRef.current?.stop()
+    setListening(false)
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -55,8 +128,28 @@ export default function AddSuppliesModal({ onClose, onAdded }: Props) {
           <button onClick={onClose} className="text-[#9c8f87] text-lg leading-none">×</button>
         </div>
 
+        {/* 音声入力ボタン */}
+        <div className="mb-5">
+          <button
+            type="button"
+            onClick={listening ? stopVoice : startVoice}
+            className={`w-full py-3 rounded-2xl text-sm font-medium flex items-center justify-center gap-2 transition-all ${
+              listening
+                ? 'bg-red-50 text-red-400 border-2 border-red-200 animate-pulse'
+                : 'bg-[#f0ebe5] text-[#6b5f58] hover:bg-[#e8e0d8]'
+            }`}
+          >
+            <span className="text-base">{listening ? '🎙️' : '🎤'}</span>
+            {listening ? '聞いています... タップで停止' : '音声で入力する'}
+          </button>
+          {transcript ? (
+            <p className="text-xs text-[#9c8f87] mt-2 px-2">認識: 「{transcript}」</p>
+          ) : (
+            <p className="text-xs text-[#b8b0a8] mt-1.5 px-2">例：「シャンプー2本、残り少ない」と話してください</p>
+          )}
+        </div>
+
         <form onSubmit={handleSubmit} className="space-y-4">
-          {/* 名前 */}
           <div>
             <label className="block text-xs text-[#6b5f58] mb-1">アイテム名 *</label>
             <input
@@ -69,7 +162,6 @@ export default function AddSuppliesModal({ onClose, onAdded }: Props) {
             />
           </div>
 
-          {/* カテゴリ */}
           <div>
             <label className="block text-xs text-[#6b5f58] mb-1">カテゴリ</label>
             <div className="flex flex-wrap gap-2">
@@ -79,9 +171,7 @@ export default function AddSuppliesModal({ onClose, onAdded }: Props) {
                   type="button"
                   onClick={() => setCategory(cat)}
                   className={`px-3 py-1.5 rounded-full text-xs transition-all ${
-                    category === cat
-                      ? 'bg-[#8b7355] text-white'
-                      : 'bg-[#f0ebe5] text-[#6b5f58]'
+                    category === cat ? 'bg-[#8b7355] text-white' : 'bg-[#f0ebe5] text-[#6b5f58]'
                   }`}
                 >
                   {cat}
@@ -90,7 +180,6 @@ export default function AddSuppliesModal({ onClose, onAdded }: Props) {
             </div>
           </div>
 
-          {/* 数量 */}
           <div>
             <label className="block text-xs text-[#6b5f58] mb-1">数量</label>
             <input
@@ -102,7 +191,6 @@ export default function AddSuppliesModal({ onClose, onAdded }: Props) {
             />
           </div>
 
-          {/* ステータス */}
           <div>
             <label className="block text-xs text-[#6b5f58] mb-2">在庫状況</label>
             <div className="flex gap-2">
@@ -112,9 +200,7 @@ export default function AddSuppliesModal({ onClose, onAdded }: Props) {
                   type="button"
                   onClick={() => setStatus(s)}
                   className={`flex-1 py-2 rounded-2xl text-xs font-medium transition-all ${
-                    status === s
-                      ? STATUS_COLORS[s]
-                      : 'bg-[#f0ebe5] text-[#9c8f87]'
+                    status === s ? STATUS_COLORS[s] : 'bg-[#f0ebe5] text-[#9c8f87]'
                   }`}
                 >
                   {s}
@@ -123,7 +209,6 @@ export default function AddSuppliesModal({ onClose, onAdded }: Props) {
             </div>
           </div>
 
-          {/* メモ */}
           <div>
             <label className="block text-xs text-[#6b5f58] mb-1">メモ（任意）</label>
             <input
