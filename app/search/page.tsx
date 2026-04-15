@@ -26,9 +26,41 @@ export default function SearchPage() {
   ])
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
+  const [listening, setListening] = useState(false)
   const bottomRef = useRef<HTMLDivElement>(null)
+  const recognitionRef = useRef<any>(null)
   const router = useRouter()
   const supabase = createClient()
+
+  function startVoice() {
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
+    if (!SpeechRecognition) {
+      alert('お使いのブラウザは音声入力に対応していません。Chromeをお使いください。')
+      return
+    }
+    const recognition = new SpeechRecognition()
+    recognition.lang = 'ja-JP'
+    recognition.continuous = false
+    recognition.interimResults = false
+    recognitionRef.current = recognition
+
+    recognition.onstart = () => setListening(true)
+    recognition.onend = () => setListening(false)
+    recognition.onresult = (event: any) => {
+      const text = event.results[0][0].transcript
+      setInput(text)
+    }
+    recognition.onerror = () => {
+      setListening(false)
+      alert('音声認識に失敗しました。もう一度お試しください。')
+    }
+    recognition.start()
+  }
+
+  function stopVoice() {
+    recognitionRef.current?.stop()
+    setListening(false)
+  }
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => {
@@ -160,12 +192,28 @@ export default function SearchPage() {
       {/* 入力欄 */}
       <div className="sticky bottom-16 bg-[#faf9f7] px-4 py-3 border-t border-[#f0ebe5]">
         <div className="flex gap-2">
+          {/* マイクボタン */}
+          <button
+            onClick={listening ? stopVoice : startVoice}
+            className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 transition-all ${
+              listening
+                ? 'bg-red-50 border-2 border-red-200 animate-pulse'
+                : 'bg-[#f0ebe5] hover:bg-[#e8e0d8]'
+            }`}
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={listening ? '#f87171' : '#8b7355'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="9" y="2" width="6" height="11" rx="3" />
+              <path d="M5 10a7 7 0 0 0 14 0" />
+              <line x1="12" y1="19" x2="12" y2="22" />
+              <line x1="8" y1="22" x2="16" y2="22" />
+            </svg>
+          </button>
           <input
             type="text"
             value={input}
             onChange={e => setInput(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && handleSend()}
-            placeholder="例：キャベツある？"
+            placeholder={listening ? '聞いています...' : '例：キャベツある？'}
             className="flex-1 px-4 py-3 rounded-2xl border border-[#e8e0d8] text-sm text-[#3d3530] focus:outline-none focus:ring-2 focus:ring-[#b8a99a] placeholder-[#c5b8b0] bg-white"
           />
           <button
