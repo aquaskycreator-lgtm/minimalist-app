@@ -45,11 +45,19 @@ export default function AuthPage() {
       <div className="w-full max-w-sm">
         {/* ロゴ */}
         <div className="text-center mb-8">
-          <div className="text-3xl mb-2">🌿</div>
+          <div className="flex justify-center mb-3">
+            <img
+              src="/aqua.png"
+              alt="AQUA"
+              className="w-20 h-20 rounded-full object-cover"
+            />
+          </div>
           <h1 className="text-xl font-medium text-[#3d3530] tracking-wide">
             ミニマリスト＆片付けアプリ
           </h1>
-          <p className="text-sm text-[#9c8f87] mt-1">シンプルな暮らしのための在庫管理</p>
+          <p className="text-sm text-[#9c8f87] mt-1 leading-relaxed">
+            部屋が整うと、心が整う。<br />心が整うと、人生が動き出す。
+          </p>
         </div>
 
         {/* タブ */}
