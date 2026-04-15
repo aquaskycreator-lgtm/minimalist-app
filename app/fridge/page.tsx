@@ -7,6 +7,7 @@ import { createClient } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
 import { FridgeItem, CATEGORIES, Category } from '@/lib/types'
 import AddItemModal from '@/components/AddItemModal'
+import BottomNav from '@/components/BottomNav'
 
 const CATEGORY_COLORS: Record<Category, string> = {
   '野菜・果物': 'bg-[#d4e8c2] text-[#4a6741]',
@@ -31,6 +32,7 @@ export default function FridgePage() {
   const [selectedCategory, setSelectedCategory] = useState<Category | 'すべて'>('すべて')
   const [showModal, setShowModal] = useState(false)
   const [userEmail, setUserEmail] = useState('')
+  const [deviation, setDeviation] = useState<number | null>(null)
   const router = useRouter()
   const supabase = createClient()
 
@@ -51,6 +53,15 @@ export default function FridgePage() {
       }
       setUserEmail(user.email ?? '')
       await fetchItems()
+      // 最新の偏差値を取得
+      const { data: diag } = await supabase
+        .from('diagnosis_results')
+        .select('deviation')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single()
+      if (diag) setDeviation(diag.deviation)
       setLoading(false)
     }
     init()
@@ -79,10 +90,10 @@ export default function FridgePage() {
   }
 
   return (
-    <div className="min-h-screen max-w-md mx-auto px-4 pb-24">
+    <div className="min-h-screen max-w-md mx-auto px-4 pb-32">
       {/* ヘッダー */}
       <div className="sticky top-0 bg-[#faf9f7] pt-6 pb-4 z-10">
-        <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center justify-between mb-3">
           <div>
             <h1 className="text-lg font-medium text-[#3d3530]">冷蔵庫</h1>
             <p className="text-xs text-[#9c8f87]">{userEmail}</p>
@@ -94,6 +105,25 @@ export default function FridgePage() {
             ログアウト
           </button>
         </div>
+
+        {/* 偏差値バナー */}
+        {deviation !== null ? (
+          <button
+            onClick={() => router.push('/diagnosis')}
+            className="w-full bg-[#f5f0eb] rounded-2xl px-4 py-2.5 mb-3 flex items-center justify-between"
+          >
+            <span className="text-xs text-[#6b5f58]">片付け偏差値</span>
+            <span className="text-lg font-bold text-[#8b7355]">{deviation}</span>
+          </button>
+        ) : (
+          <button
+            onClick={() => router.push('/diagnosis')}
+            className="w-full bg-[#f5f0eb] rounded-2xl px-4 py-2.5 mb-3 flex items-center justify-between"
+          >
+            <span className="text-xs text-[#6b5f58]">片付け偏差値を診断する</span>
+            <span className="text-xs text-[#8b7355]">→</span>
+          </button>
+        )}
 
         {/* カテゴリフィルター */}
         <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
@@ -167,7 +197,7 @@ export default function FridgePage() {
       {/* 追加ボタン */}
       <button
         onClick={() => setShowModal(true)}
-        className="fixed bottom-6 left-1/2 -translate-x-1/2 w-14 h-14 rounded-full bg-[#8b7355] text-white text-2xl shadow-lg hover:bg-[#7a6347] transition-colors flex items-center justify-center"
+        className="fixed bottom-20 right-6 w-14 h-14 rounded-full bg-[#8b7355] text-white text-2xl shadow-lg hover:bg-[#7a6347] transition-colors flex items-center justify-center z-30"
       >
         +
       </button>
@@ -182,6 +212,8 @@ export default function FridgePage() {
           }}
         />
       )}
+
+      <BottomNav />
     </div>
   )
 }
