@@ -10,7 +10,7 @@ export default function BottomNav() {
     { href: '/fridge',    label: '冷蔵庫',  icon: '🧊' },
     { href: '/supplies',  label: '日用品',  icon: '🧴' },
     { href: '/closet',    label: '洋服',    icon: '👗' },
-    { href: '/search',    label: '検索',    icon: '🔍' },
+    { href: '/search',    label: '相談',    icon: '💬' },
     { href: '/diagnosis', label: '診断',    icon: '📊' },
   ]
 
