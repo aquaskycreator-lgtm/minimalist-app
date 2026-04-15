@@ -5,7 +5,7 @@ export const dynamic = 'force-dynamic'
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
-import { QUESTIONS, ANSWERS, ANSWERS_POSITIVE, calcDeviation, calcAxisScores } from '@/lib/diagnosis'
+import { QUESTIONS, calcDeviation, calcAxisScores } from '@/lib/diagnosis'
 import BottomNav from '@/components/BottomNav'
 
 export default function DiagnosisPage() {
@@ -16,7 +16,7 @@ export default function DiagnosisPage() {
   const supabase = createClient()
 
   const q = QUESTIONS[current]
-  const options = q.positive ? ANSWERS_POSITIVE : ANSWERS
+  const options = q.answers
   const progress = Math.round((current / QUESTIONS.length) * 100)
 
   async function handleAnswer(value: number) {

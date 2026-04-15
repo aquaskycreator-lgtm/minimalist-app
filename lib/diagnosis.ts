@@ -1,35 +1,126 @@
 export type AxisKey = '持ち物量' | '定位置' | '動線' | '維持力' | '在庫管理'
 
+export type AnswerOption = { label: string; value: number }
+
 export type Question = {
   id: number
   text: string
   axis: AxisKey
-  positive: boolean // trueなら「ある」=良い、falseなら「ある」=悪い
+  positive: boolean
+  answers: AnswerOption[]
 }
 
 export const QUESTIONS: Question[] = [
-  { id: 1,  text: '床にモノを直置きすることがありますか？',              axis: '維持力',   positive: false },
-  { id: 2,  text: 'よく使うモノの定位置は決まっていますか？',            axis: '定位置',   positive: true  },
-  { id: 3,  text: '家族もその置き場所を理解していますか？',              axis: '定位置',   positive: true  },
-  { id: 4,  text: '同じようなモノをいくつ持っているか把握していますか？', axis: '持ち物量', positive: true  },
-  { id: 5,  text: '冷蔵庫の中身をだいたい思い出せますか？',             axis: '在庫管理', positive: true  },
-  { id: 6,  text: '日用品の買いすぎや買い忘れがありますか？',            axis: '在庫管理', positive: false },
-  { id: 7,  text: 'クローゼットに1年以上着ていない服がありますか？',     axis: '持ち物量', positive: false },
-  { id: 8,  text: 'モノが多すぎて片付けに時間がかかると感じますか？',    axis: '持ち物量', positive: false },
-  { id: 9,  text: '出したモノを元の場所に戻すのが面倒ですか？',          axis: '動線',     positive: false },
-  { id: 10, text: '来客前だけ慌てて片付けることが多いですか？',          axis: '維持力',   positive: false },
-]
-
-export const ANSWERS = [
-  { label: 'いつもある',    value: 0 },
-  { label: 'ときどきある',  value: 2 },
-  { label: 'ほとんどない',  value: 4 },
-]
-
-export const ANSWERS_POSITIVE = [
-  { label: 'いつもある',    value: 4 },
-  { label: 'ときどきある',  value: 2 },
-  { label: 'ほとんどない',  value: 0 },
+  {
+    id: 1,
+    text: '床にモノを直置きすることがありますか？',
+    axis: '維持力',
+    positive: false,
+    answers: [
+      { label: 'よくある',       value: 0 },
+      { label: 'たまにある',     value: 2 },
+      { label: 'ほとんどない',   value: 4 },
+    ],
+  },
+  {
+    id: 2,
+    text: 'よく使うモノの定位置は決まっていますか？',
+    axis: '定位置',
+    positive: true,
+    answers: [
+      { label: '決まっている',           value: 4 },
+      { label: 'だいたい決まっている',   value: 2 },
+      { label: '決まっていない',         value: 0 },
+    ],
+  },
+  {
+    id: 3,
+    text: '家族もその置き場所を理解していますか？',
+    axis: '定位置',
+    positive: true,
+    answers: [
+      { label: '理解している',           value: 4 },
+      { label: 'だいたい理解している',   value: 2 },
+      { label: '理解していない',         value: 0 },
+    ],
+  },
+  {
+    id: 4,
+    text: '同じようなモノをいくつ持っているか把握していますか？',
+    axis: '持ち物量',
+    positive: true,
+    answers: [
+      { label: '把握している',           value: 4 },
+      { label: 'だいたい把握している',   value: 2 },
+      { label: '把握していない',         value: 0 },
+    ],
+  },
+  {
+    id: 5,
+    text: '冷蔵庫の中身をだいたい思い出せますか？',
+    axis: '在庫管理',
+    positive: true,
+    answers: [
+      { label: '思い出せる',             value: 4 },
+      { label: 'だいたい思い出せる',     value: 2 },
+      { label: '思い出せない',           value: 0 },
+    ],
+  },
+  {
+    id: 6,
+    text: '日用品の買いすぎや買い忘れがありますか？',
+    axis: '在庫管理',
+    positive: false,
+    answers: [
+      { label: 'よくある',       value: 0 },
+      { label: 'たまにある',     value: 2 },
+      { label: 'ほとんどない',   value: 4 },
+    ],
+  },
+  {
+    id: 7,
+    text: 'クローゼットに1年以上着ていない服がありますか？',
+    axis: '持ち物量',
+    positive: false,
+    answers: [
+      { label: 'たくさんある',   value: 0 },
+      { label: '少しある',       value: 2 },
+      { label: 'ほとんどない',   value: 4 },
+    ],
+  },
+  {
+    id: 8,
+    text: 'モノが多すぎて片付けに時間がかかると感じますか？',
+    axis: '持ち物量',
+    positive: false,
+    answers: [
+      { label: 'よく感じる',     value: 0 },
+      { label: 'たまに感じる',   value: 2 },
+      { label: '感じない',       value: 4 },
+    ],
+  },
+  {
+    id: 9,
+    text: '出したモノを元の場所に戻すのが面倒ですか？',
+    axis: '動線',
+    positive: false,
+    answers: [
+      { label: 'よく感じる',     value: 0 },
+      { label: 'たまに感じる',   value: 2 },
+      { label: '感じない',       value: 4 },
+    ],
+  },
+  {
+    id: 10,
+    text: '来客前だけ慌てて片付けることが多いですか？',
+    axis: '維持力',
+    positive: false,
+    answers: [
+      { label: 'よくある',       value: 0 },
+      { label: 'たまにある',     value: 2 },
+      { label: 'ほとんどない',   value: 4 },
+    ],
+  },
 ]
 
 // スコア → 偏差値変換
