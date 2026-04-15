@@ -79,7 +79,7 @@ export default function ClosetPage() {
       <div className="sticky top-0 bg-[#faf9f7] pt-6 pb-4 z-10">
         <div className="flex items-center justify-between mb-3">
           <div>
-            <h1 className="text-lg font-medium text-[#3d3530]">洋服</h1>
+            <h1 className="text-lg font-medium text-[#3d3530]">アパレル</h1>
             <p className="text-xs text-[#9c8f87]">{items.length}アイテム</p>
           </div>
         </div>

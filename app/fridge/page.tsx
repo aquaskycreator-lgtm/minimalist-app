@@ -9,7 +9,6 @@ import { FridgeItem, CATEGORIES, Category } from '@/lib/types'
 import AddItemModal from '@/components/AddItemModal'
 import FoodShoppingListModal from '@/components/FoodShoppingListModal'
 import BottomNav from '@/components/BottomNav'
-import { getTodayQuote } from '@/lib/aqua-quotes'
 
 const CATEGORY_COLORS: Record<Category, string> = {
   '野菜・果物': 'bg-[#d4e8c2] text-[#4a6741]',
@@ -35,7 +34,6 @@ export default function FridgePage() {
   const [showModal, setShowModal] = useState(false)
   const [showShopping, setShowShopping] = useState(false)
   const [userEmail, setUserEmail] = useState('')
-  const [deviation, setDeviation] = useState<number | null>(null)
   const router = useRouter()
   const supabase = createClient()
 
@@ -56,15 +54,6 @@ export default function FridgePage() {
       }
       setUserEmail(user.email ?? '')
       await fetchItems()
-      // 最新の偏差値を取得
-      const { data: diag } = await supabase
-        .from('diagnosis_results')
-        .select('deviation')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .single()
-      if (diag) setDeviation(diag.deviation)
       setLoading(false)
     }
     init()
@@ -123,31 +112,6 @@ export default function FridgePage() {
             ログアウト
           </button>
         </div>
-
-        {/* 今日のひとこと */}
-        <div className="bg-[#fdf8f3] rounded-2xl px-4 py-3 mb-3 border border-[#ede5d8]">
-          <p className="text-[10px] text-[#b8a99a] mb-0.5">今日のひとこと</p>
-          <p className="text-xs text-[#6b5f58] leading-relaxed">{getTodayQuote()}</p>
-        </div>
-
-        {/* 偏差値バナー */}
-        {deviation !== null ? (
-          <button
-            onClick={() => router.push('/diagnosis')}
-            className="w-full bg-[#f5f0eb] rounded-2xl px-4 py-2.5 mb-3 flex items-center justify-between"
-          >
-            <span className="text-xs text-[#6b5f58]">片付け偏差値</span>
-            <span className="text-lg font-bold text-[#8b7355]">{deviation}</span>
-          </button>
-        ) : (
-          <button
-            onClick={() => router.push('/diagnosis')}
-            className="w-full bg-[#f5f0eb] rounded-2xl px-4 py-2.5 mb-3 flex items-center justify-between"
-          >
-            <span className="text-xs text-[#6b5f58]">片付け偏差値を診断する</span>
-            <span className="text-xs text-[#8b7355]">→</span>
-          </button>
-        )}
 
         {/* カテゴリフィルター */}
         <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">

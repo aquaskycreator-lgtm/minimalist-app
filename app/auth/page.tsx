@@ -32,7 +32,7 @@ export default function AuthPage() {
       if (error) {
         setMessage('メールアドレスまたはパスワードが正しくありません')
       } else {
-        router.push('/fridge')
+        router.push('/top')
         router.refresh()
       }
     }

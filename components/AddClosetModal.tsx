@@ -146,7 +146,7 @@ export default function AddClosetModal({ onClose, onAdded }: Props) {
 
       <div className="relative w-full max-w-md bg-white rounded-t-3xl px-6 pt-6 pb-10 shadow-xl">
         <div className="flex items-center justify-between mb-5">
-          <h2 className="text-base font-medium text-[#3d3530]">洋服を追加</h2>
+          <h2 className="text-base font-medium text-[#3d3530]">アパレルを追加</h2>
           <button onClick={onClose} className="text-[#9c8f87] text-lg leading-none">×</button>
         </div>
 
