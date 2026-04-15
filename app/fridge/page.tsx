@@ -8,6 +8,7 @@ import { useRouter } from 'next/navigation'
 import { FridgeItem, CATEGORIES, Category } from '@/lib/types'
 import AddItemModal from '@/components/AddItemModal'
 import BottomNav from '@/components/BottomNav'
+import { getTodayQuote } from '@/lib/aqua-quotes'
 
 const CATEGORY_COLORS: Record<Category, string> = {
   '野菜・果物': 'bg-[#d4e8c2] text-[#4a6741]',
@@ -104,6 +105,12 @@ export default function FridgePage() {
           >
             ログアウト
           </button>
+        </div>
+
+        {/* 今日のひとこと */}
+        <div className="bg-[#fdf8f3] rounded-2xl px-4 py-3 mb-3 border border-[#ede5d8]">
+          <p className="text-[10px] text-[#b8a99a] mb-0.5">今日のひとこと</p>
+          <p className="text-xs text-[#6b5f58] leading-relaxed">{getTodayQuote()}</p>
         </div>
 
         {/* 偏差値バナー */}

@@ -7,6 +7,7 @@ import { createClient } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
 import { SupplyItem, SupplyCategory, SUPPLY_CATEGORIES, SupplyStatus } from '@/lib/types'
 import AddSuppliesModal from '@/components/AddSuppliesModal'
+import ShoppingListModal from '@/components/ShoppingListModal'
 import BottomNav from '@/components/BottomNav'
 
 const CATEGORY_COLORS: Record<SupplyCategory, string> = {
@@ -29,6 +30,7 @@ export default function SuppliesPage() {
   const [loading, setLoading] = useState(true)
   const [selectedCategory, setSelectedCategory] = useState<SupplyCategory | 'すべて'>('すべて')
   const [showModal, setShowModal] = useState(false)
+  const [showShopping, setShowShopping] = useState(false)
   const router = useRouter()
   const supabase = createClient()
 
@@ -84,20 +86,30 @@ export default function SuppliesPage() {
             <h1 className="text-lg font-medium text-[#3d3530]">日用品</h1>
             <p className="text-xs text-[#9c8f87]">{items.length}アイテム</p>
           </div>
-          {(outOfStock > 0 || lowStock > 0) && (
-            <div className="flex gap-2">
-              {outOfStock > 0 && (
-                <span className="text-xs px-2.5 py-1 rounded-full bg-[#f5d5c8] text-[#7a3f30]">
-                  切れた {outOfStock}
-                </span>
-              )}
-              {lowStock > 0 && (
-                <span className="text-xs px-2.5 py-1 rounded-full bg-[#f5ecd0] text-[#7a6130]">
-                  残り少 {lowStock}
-                </span>
-              )}
-            </div>
-          )}
+          <div className="flex items-center gap-2">
+            {(outOfStock > 0 || lowStock > 0) && (
+              <>
+                {outOfStock > 0 && (
+                  <span className="text-xs px-2.5 py-1 rounded-full bg-[#f5d5c8] text-[#7a3f30]">
+                    切れた {outOfStock}
+                  </span>
+                )}
+                {lowStock > 0 && (
+                  <span className="text-xs px-2.5 py-1 rounded-full bg-[#f5ecd0] text-[#7a6130]">
+                    残り少 {lowStock}
+                  </span>
+                )}
+              </>
+            )}
+            {(outOfStock > 0 || lowStock > 0) && (
+              <button
+                onClick={() => setShowShopping(true)}
+                className="flex items-center gap-1 px-3 py-1 rounded-full bg-[#8b7355] text-white text-xs"
+              >
+                🛒 買い物リスト
+              </button>
+            )}
+          </div>
         </div>
 
         {/* カテゴリフィルター */}
@@ -185,6 +197,14 @@ export default function SuppliesPage() {
         <AddSuppliesModal
           onClose={() => setShowModal(false)}
           onAdded={() => { fetchItems(); setShowModal(false) }}
+        />
+      )}
+
+      {showShopping && (
+        <ShoppingListModal
+          items={items}
+          onClose={() => setShowShopping(false)}
+          onUpdated={fetchItems}
         />
       )}
 

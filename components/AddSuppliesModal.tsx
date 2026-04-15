@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { createClient } from '@/lib/supabase'
 import { SUPPLY_CATEGORIES, SUPPLY_STATUSES, SupplyCategory, SupplyStatus } from '@/lib/types'
 
@@ -59,8 +59,29 @@ export default function AddSuppliesModal({ onClose, onAdded }: Props) {
   const [loading, setLoading] = useState(false)
   const [listening, setListening] = useState(false)
   const [transcript, setTranscript] = useState('')
+  const [recentItems, setRecentItems] = useState<{name: string, category: SupplyCategory}[]>([])
   const recognitionRef = useRef<any>(null)
   const supabase = createClient()
+
+  useEffect(() => {
+    async function fetchRecent() {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+      const { data } = await supabase
+        .from('supplies')
+        .select('name, category')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(8)
+      if (data) {
+        const unique = data.filter((item, idx, arr) =>
+          arr.findIndex(i => i.name === item.name) === idx
+        )
+        setRecentItems(unique.slice(0, 5) as {name: string, category: SupplyCategory}[])
+      }
+    }
+    fetchRecent()
+  }, [supabase])
 
   function startVoice() {
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
@@ -148,6 +169,25 @@ export default function AddSuppliesModal({ onClose, onAdded }: Props) {
             <p className="text-xs text-[#b8b0a8] mt-1.5 px-2">例：「シャンプー2本、残り少ない」と話してください</p>
           )}
         </div>
+
+        {/* クイック追加 */}
+        {recentItems.length > 0 && (
+          <div className="mb-4">
+            <p className="text-xs text-[#9c8f87] mb-2">最近追加したアイテム</p>
+            <div className="flex flex-wrap gap-2">
+              {recentItems.map(item => (
+                <button
+                  key={item.name}
+                  type="button"
+                  onClick={() => { setName(item.name); setCategory(item.category) }}
+                  className="px-3 py-1.5 rounded-full text-xs bg-[#f0ebe5] text-[#6b5f58] hover:bg-[#e8e0d8] transition-colors"
+                >
+                  {item.name}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
