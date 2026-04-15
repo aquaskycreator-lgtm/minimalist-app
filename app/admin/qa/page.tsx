@@ -15,8 +15,16 @@ type CustomQA = {
   created_at: string
 }
 
+type UnansweredQ = {
+  id: string
+  question: string
+  asked_at: string
+  is_resolved: boolean
+}
+
 export default function AdminQAPage() {
   const [items, setItems] = useState<CustomQA[]>([])
+  const [unanswered, setUnanswered] = useState<UnansweredQ[]>([])
   const [loading, setLoading] = useState(true)
   const [keywords, setKeywords] = useState('')
   const [answer, setAnswer] = useState('')
@@ -24,15 +32,17 @@ export default function AdminQAPage() {
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editKeywords, setEditKeywords] = useState('')
   const [editAnswer, setEditAnswer] = useState('')
+  const [replyingToId, setReplyingToId] = useState<string | null>(null)
   const router = useRouter()
   const supabase = createClient()
 
   const fetchItems = useCallback(async () => {
-    const { data } = await supabase
-      .from('custom_qa')
-      .select('*')
-      .order('created_at', { ascending: false })
-    if (data) setItems(data as CustomQA[])
+    const [qaRes, uqRes] = await Promise.all([
+      supabase.from('custom_qa').select('*').order('created_at', { ascending: false }),
+      supabase.from('unanswered_questions').select('*').eq('is_resolved', false).order('asked_at', { ascending: false }),
+    ])
+    if (qaRes.data) setItems(qaRes.data as CustomQA[])
+    if (uqRes.data) setUnanswered(uqRes.data as UnansweredQ[])
   }, [supabase])
 
   useEffect(() => {
@@ -56,10 +66,28 @@ export default function AdminQAPage() {
       keywords: keywords.trim(),
       answer: answer.trim(),
     })
+    // 対応する未回答質問を解決済みにする
+    if (replyingToId) {
+      await supabase.from('unanswered_questions').update({ is_resolved: true }).eq('id', replyingToId)
+      setReplyingToId(null)
+    }
     setKeywords('')
     setAnswer('')
     await fetchItems()
     setSaving(false)
+  }
+
+  function fillFromUnanswered(q: UnansweredQ) {
+    setReplyingToId(q.id)
+    setKeywords(q.question)
+    setAnswer('')
+    // フォームまでスクロール
+    document.getElementById('add-form')?.scrollIntoView({ behavior: 'smooth' })
+  }
+
+  async function dismissUnanswered(id: string) {
+    await supabase.from('unanswered_questions').update({ is_resolved: true }).eq('id', id)
+    setUnanswered(prev => prev.filter(q => q.id !== id))
   }
 
   async function handleDelete(id: string) {
@@ -107,9 +135,57 @@ export default function AdminQAPage() {
         </div>
       </div>
 
+      {/* 未回答の質問 */}
+      {unanswered.length > 0 && (
+        <div className="bg-[#fff8f0] rounded-3xl p-5 shadow-sm mb-5 border border-[#f0d8b8]">
+          <div className="flex items-center gap-2 mb-4">
+            <span className="w-5 h-5 rounded-full bg-red-400 text-white text-[10px] flex items-center justify-center font-medium shrink-0">
+              {unanswered.length}
+            </span>
+            <p className="text-xs font-medium text-[#6b5f58]">回答できなかった質問</p>
+          </div>
+          <div className="space-y-2">
+            {unanswered.map(q => (
+              <div key={q.id} className="bg-white rounded-2xl px-4 py-3 flex items-center gap-3">
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm text-[#3d3530] truncate">「{q.question}」</p>
+                  <p className="text-[10px] text-[#b8b0a8] mt-0.5">
+                    {new Date(q.asked_at).toLocaleDateString('ja-JP', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                  </p>
+                </div>
+                <div className="flex gap-2 shrink-0">
+                  <button
+                    onClick={() => fillFromUnanswered(q)}
+                    className="text-xs text-white bg-[#8b7355] px-3 py-1.5 rounded-full"
+                  >
+                    回答する
+                  </button>
+                  <button
+                    onClick={() => dismissUnanswered(q.id)}
+                    className="text-xs text-[#c5b8b0] hover:text-[#9c8f87]"
+                  >
+                    ×
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* 新規追加フォーム */}
-      <div className="bg-white rounded-3xl p-5 shadow-sm mb-5">
-        <p className="text-xs font-medium text-[#6b5f58] mb-4">新しい回答を追加</p>
+      <div id="add-form" className="bg-white rounded-3xl p-5 shadow-sm mb-5">
+        <p className="text-xs font-medium text-[#6b5f58] mb-4">
+          {replyingToId ? '未回答質問に回答する' : '新しい回答を追加'}
+        </p>
+        {replyingToId && (
+          <button
+            onClick={() => { setReplyingToId(null); setKeywords(''); setAnswer('') }}
+            className="text-[10px] text-[#9c8f87] mb-3 block"
+          >
+            ← 通常追加に戻る
+          </button>
+        )}
         <form onSubmit={handleAdd} className="space-y-3">
           <div>
             <label className="text-[10px] text-[#9c8f87] block mb-1">

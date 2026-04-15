@@ -40,6 +40,7 @@ export default function SearchPage() {
   const [loading, setLoading] = useState(false)
   const [listening, setListening] = useState(false)
   const [isAdmin, setIsAdmin] = useState(false)
+  const [unreadCount, setUnreadCount] = useState(0)
   const [addingForQuery, setAddingForQuery] = useState<string | null>(null)
   const [newKeywords, setNewKeywords] = useState('')
   const [newAnswer, setNewAnswer] = useState('')
@@ -55,9 +56,17 @@ export default function SearchPage() {
     : (fn: (prev: Message[]) => Message[]) => setAdviceMessages(fn)
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data: { user } }) => {
+    supabase.auth.getUser().then(async ({ data: { user } }) => {
       if (!user) { router.push('/auth'); return }
-      setIsAdmin(user.email === ADMIN_EMAIL)
+      const admin = user.email === ADMIN_EMAIL
+      setIsAdmin(admin)
+      if (admin) {
+        const { count } = await supabase
+          .from('unanswered_questions')
+          .select('*', { count: 'exact', head: true })
+          .eq('is_resolved', false)
+        setUnreadCount(count ?? 0)
+      }
     })
   }, [supabase, router])
 
@@ -139,6 +148,8 @@ export default function SearchPage() {
         } else {
           reply = FALLBACK
           isFallback = true
+          // 未回答質問として記録
+          await supabase.from('unanswered_questions').insert({ question: q })
         }
       } else {
         reply = staticReply
@@ -234,9 +245,14 @@ export default function SearchPage() {
           {isAdmin && (
             <button
               onClick={() => router.push('/admin/qa')}
-              className="text-xs text-[#8b7355] bg-[#f5f0eb] px-3 py-1.5 rounded-full"
+              className="relative text-xs text-[#8b7355] bg-[#f5f0eb] px-3 py-1.5 rounded-full"
             >
               Q&A管理
+              {unreadCount > 0 && (
+                <span className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-red-400 text-white text-[10px] flex items-center justify-center font-medium">
+                  {unreadCount > 9 ? '9+' : unreadCount}
+                </span>
+              )}
             </button>
           )}
         </div>
