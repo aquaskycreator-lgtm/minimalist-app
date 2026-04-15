@@ -113,7 +113,7 @@ function ResultContent() {
           onClick={() => router.push('/fridge')}
           className="w-full py-3 rounded-2xl bg-[#8b7355] text-white text-sm font-medium"
         >
-          冷蔵庫管理に戻る
+          食料品管理に戻る
         </button>
         <button
           onClick={() => router.push('/diagnosis')}
