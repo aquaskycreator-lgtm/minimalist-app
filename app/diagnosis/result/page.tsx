@@ -44,7 +44,7 @@ function ResultContent() {
   }
 
   return (
-    <div className="min-h-screen bg-[#faf9f7] max-w-md mx-auto px-6 pb-24">
+    <div className="min-h-screen w-full bg-[#faf9f7] max-w-md mx-auto px-6 pb-24">
       <div className="pt-12 pb-6 text-center">
         <p className="text-xs text-[#9c8f87] mb-1">診断結果</p>
         <h1 className="text-lg font-medium text-[#3d3530]">あなたの片付け偏差値</h1>

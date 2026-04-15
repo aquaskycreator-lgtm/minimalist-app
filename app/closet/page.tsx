@@ -74,7 +74,7 @@ export default function ClosetPage() {
   }
 
   return (
-    <div className="min-h-screen max-w-md mx-auto px-4 pb-32">
+    <div className="min-h-screen w-full max-w-md mx-auto px-4 pb-32">
       {/* ヘッダー */}
       <div className="sticky top-0 bg-[#faf9f7] pt-6 pb-4 z-10">
         <div className="flex items-center justify-between mb-3">

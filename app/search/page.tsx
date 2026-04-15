@@ -151,7 +151,7 @@ export default function SearchPage() {
     : (listening ? '聞いています...' : '例：捨てられません')
 
   return (
-    <div className="min-h-screen max-w-md mx-auto flex flex-col pb-20">
+    <div className="min-h-screen w-full max-w-md mx-auto flex flex-col pb-20">
       {/* ヘッダー */}
       <div className="sticky top-0 bg-[#faf9f7] pt-6 px-4 pb-3 z-10">
         <h1 className="text-lg font-medium text-[#3d3530] mb-3">相談</h1>

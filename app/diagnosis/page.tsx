@@ -54,7 +54,7 @@ export default function DiagnosisPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#faf9f7] flex flex-col max-w-md mx-auto px-6 pb-20">
+    <div className="min-h-screen w-full bg-[#faf9f7] flex flex-col max-w-md mx-auto px-6 pb-20">
       {/* ヘッダー */}
       <div className="pt-12 pb-6">
         <p className="text-xs text-[#9c8f87] mb-1">片付け偏差値診断</p>
