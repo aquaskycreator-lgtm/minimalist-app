@@ -25,10 +25,15 @@ const STATUS_COLORS: Record<SupplyStatus, string> = {
   '切れた':     'bg-[#f5d5c8] text-[#7a3f30]',
 }
 
+type SupplySort = '追加順' | '名前順' | 'カテゴリ順' | '在庫状況順'
+const SUPPLY_SORTS: SupplySort[] = ['追加順', '名前順', 'カテゴリ順', '在庫状況順']
+const STATUS_ORDER: Record<string, number> = { '切れた': 0, '残り少ない': 1, '在庫あり': 2 }
+
 export default function SuppliesPage() {
   const [items, setItems] = useState<SupplyItem[]>([])
   const [loading, setLoading] = useState(true)
   const [selectedCategory, setSelectedCategory] = useState<SupplyCategory | 'すべて'>('すべて')
+  const [sortBy, setSortBy] = useState<SupplySort>('追加順')
   const [showModal, setShowModal] = useState(false)
   const [showShopping, setShowShopping] = useState(false)
   const router = useRouter()
@@ -62,9 +67,15 @@ export default function SuppliesPage() {
     setItems(prev => prev.map(item => item.id === id ? { ...item, status: newStatus } : item))
   }
 
-  const filtered = selectedCategory === 'すべて'
+  const filtered = (selectedCategory === 'すべて'
     ? items
     : items.filter(item => item.category === selectedCategory)
+  ).slice().sort((a, b) => {
+    if (sortBy === '名前順') return a.name.localeCompare(b.name, 'ja')
+    if (sortBy === 'カテゴリ順') return a.category.localeCompare(b.category, 'ja')
+    if (sortBy === '在庫状況順') return (STATUS_ORDER[a.status] ?? 3) - (STATUS_ORDER[b.status] ?? 3)
+    return 0
+  })
 
   const outOfStock = items.filter(i => i.status === '切れた').length
   const lowStock = items.filter(i => i.status === '残り少ない').length
@@ -123,6 +134,23 @@ export default function SuppliesPage() {
               }`}
             >
               {cat}
+            </button>
+          ))}
+        </div>
+
+        {/* 並び替え */}
+        <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide mt-2">
+          {SUPPLY_SORTS.map(s => (
+            <button
+              key={s}
+              onClick={() => setSortBy(s)}
+              className={`whitespace-nowrap px-3 py-1 rounded-full text-[10px] transition-all ${
+                sortBy === s
+                  ? 'bg-[#3d3530] text-white'
+                  : 'bg-[#f0ebe5] text-[#9c8f87]'
+              }`}
+            >
+              {s}
             </button>
           ))}
         </div>

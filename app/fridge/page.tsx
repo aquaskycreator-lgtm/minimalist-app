@@ -27,10 +27,14 @@ function daysUntilExpiry(dateStr: string | null): number | null {
   return Math.ceil((expiry.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
 }
 
+type FridgeSort = '追加順' | '名前順' | 'カテゴリ順' | '賞味期限順'
+const FRIDGE_SORTS: FridgeSort[] = ['追加順', '名前順', 'カテゴリ順', '賞味期限順']
+
 export default function FridgePage() {
   const [items, setItems] = useState<FridgeItem[]>([])
   const [loading, setLoading] = useState(true)
   const [selectedCategory, setSelectedCategory] = useState<Category | 'すべて'>('すべて')
+  const [sortBy, setSortBy] = useState<FridgeSort>('追加順')
   const [showModal, setShowModal] = useState(false)
   const [showShopping, setShowShopping] = useState(false)
   const [userEmail, setUserEmail] = useState('')
@@ -74,9 +78,20 @@ export default function FridgePage() {
     router.push('/auth')
   }
 
-  const filtered = selectedCategory === 'すべて'
+  const filtered = (selectedCategory === 'すべて'
     ? items
     : items.filter(item => item.category === selectedCategory)
+  ).slice().sort((a, b) => {
+    if (sortBy === '名前順') return a.name.localeCompare(b.name, 'ja')
+    if (sortBy === 'カテゴリ順') return a.category.localeCompare(b.category, 'ja')
+    if (sortBy === '賞味期限順') {
+      if (!a.expiry_date && !b.expiry_date) return 0
+      if (!a.expiry_date) return 1
+      if (!b.expiry_date) return -1
+      return a.expiry_date.localeCompare(b.expiry_date)
+    }
+    return 0 // 追加順はDBからの順序をそのまま使用
+  })
 
   if (loading) {
     return (
@@ -132,6 +147,23 @@ export default function FridgePage() {
               }`}
             >
               {cat}
+            </button>
+          ))}
+        </div>
+
+        {/* 並び替え */}
+        <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide mt-2">
+          {FRIDGE_SORTS.map(s => (
+            <button
+              key={s}
+              onClick={() => setSortBy(s)}
+              className={`whitespace-nowrap px-3 py-1 rounded-full text-[10px] transition-all ${
+                sortBy === s
+                  ? 'bg-[#3d3530] text-white'
+                  : 'bg-[#f0ebe5] text-[#9c8f87]'
+              }`}
+            >
+              {s}
             </button>
           ))}
         </div>

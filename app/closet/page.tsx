@@ -24,10 +24,15 @@ const SEASON_LABELS: Record<string, string> = {
   'オールシーズン': '✦',
 }
 
+type ClosetSort = '追加順' | '名前順' | 'カテゴリ順' | 'シーズン順'
+const CLOSET_SORTS: ClosetSort[] = ['追加順', '名前順', 'カテゴリ順', 'シーズン順']
+const SEASON_ORDER: Record<string, number> = { '春夏': 0, '秋冬': 1, 'オールシーズン': 2 }
+
 export default function ClosetPage() {
   const [items, setItems] = useState<ClosetItem[]>([])
   const [loading, setLoading] = useState(true)
   const [selectedCategory, setSelectedCategory] = useState<ClosetCategory | 'すべて'>('すべて')
+  const [sortBy, setSortBy] = useState<ClosetSort>('追加順')
   const [showModal, setShowModal] = useState(false)
   const router = useRouter()
   const supabase = createClient()
@@ -55,9 +60,15 @@ export default function ClosetPage() {
     setItems(prev => prev.filter(item => item.id !== id))
   }
 
-  const filtered = selectedCategory === 'すべて'
+  const filtered = (selectedCategory === 'すべて'
     ? items
     : items.filter(item => item.category === selectedCategory)
+  ).slice().sort((a, b) => {
+    if (sortBy === '名前順') return a.name.localeCompare(b.name, 'ja')
+    if (sortBy === 'カテゴリ順') return a.category.localeCompare(b.category, 'ja')
+    if (sortBy === 'シーズン順') return (SEASON_ORDER[a.season ?? ''] ?? 3) - (SEASON_ORDER[b.season ?? ''] ?? 3)
+    return 0
+  })
 
   // カテゴリ別カウント
   const categoryCounts = CLOSET_CATEGORIES.reduce((acc, cat) => {
@@ -97,6 +108,23 @@ export default function ClosetPage() {
               }`}
             >
               {cat}{cat !== 'すべて' && categoryCounts[cat as ClosetCategory] > 0 ? ` ${categoryCounts[cat as ClosetCategory]}` : ''}
+            </button>
+          ))}
+        </div>
+
+        {/* 並び替え */}
+        <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide mt-2">
+          {CLOSET_SORTS.map(s => (
+            <button
+              key={s}
+              onClick={() => setSortBy(s)}
+              className={`whitespace-nowrap px-3 py-1 rounded-full text-[10px] transition-all ${
+                sortBy === s
+                  ? 'bg-[#3d3530] text-white'
+                  : 'bg-[#f0ebe5] text-[#9c8f87]'
+              }`}
+            >
+              {s}
             </button>
           ))}
         </div>
