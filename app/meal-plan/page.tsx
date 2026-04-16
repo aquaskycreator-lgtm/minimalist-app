@@ -2,7 +2,7 @@
 
 export const dynamic = 'force-dynamic'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import { createClient } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
 import BottomNav from '@/components/BottomNav'
@@ -16,6 +16,7 @@ type MealEntry = {
   date: string
   meal_type: string
   content: string
+  calories: number | null
 }
 
 function getWeekDates(baseDate: Date): Date[] {
@@ -38,13 +39,30 @@ function formatDateLabel(date: Date): string {
   return `${date.getMonth() + 1}/${date.getDate()}`
 }
 
+// 音声テキストからカロリーを抽出
+function extractCalories(text: string): number | null {
+  const match = text.match(/(\d+)\s*(カロリー|kcal|キロカロリー|cal)/i)
+  return match ? parseInt(match[1]) : null
+}
+
+// 音声テキストから料理名を抽出（カロリー部分を除去）
+function extractMealName(text: string): string {
+  return text
+    .replace(/(\d+)\s*(カロリー|kcal|キロカロリー|cal)/gi, '')
+    .replace(/[、。,.\s]+/g, '')
+    .trim()
+}
+
 export default function MealPlanPage() {
   const [loading, setLoading] = useState(true)
   const [weekBase, setWeekBase] = useState(() => new Date())
   const [meals, setMeals] = useState<MealEntry[]>([])
   const [editingKey, setEditingKey] = useState<string | null>(null)
-  const [editingValue, setEditingValue] = useState('')
+  const [editingContent, setEditingContent] = useState('')
+  const [editingCalories, setEditingCalories] = useState('')
   const [saving, setSaving] = useState(false)
+  const [listening, setListening] = useState(false)
+  const recognitionRef = useRef<any>(null)
   const router = useRouter()
   const supabase = createClient()
 
@@ -60,7 +78,7 @@ export default function MealPlanPage() {
 
     const { data } = await supabase
       .from('meal_plans')
-      .select('id, date, meal_type, content')
+      .select('id, date, meal_type, content, calories')
       .eq('user_id', user.id)
       .gte('date', from)
       .lte('date', to)
@@ -75,11 +93,28 @@ export default function MealPlanPage() {
     return meals.find(m => m.date === date && m.meal_type === mealType)
   }
 
+  function getDayCalories(date: string): number {
+    return meals
+      .filter(m => m.date === date && m.calories)
+      .reduce((sum, m) => sum + (m.calories ?? 0), 0)
+  }
+
   function startEdit(date: string, mealType: string) {
     const key = `${date}_${mealType}`
     const existing = getMeal(date, mealType)
     setEditingKey(key)
-    setEditingValue(existing?.content ?? '')
+    setEditingContent(existing?.content ?? '')
+    setEditingCalories(existing?.calories ? String(existing.calories) : '')
+  }
+
+  function cancelEdit() {
+    setEditingKey(null)
+    setEditingContent('')
+    setEditingCalories('')
+    if (recognitionRef.current) {
+      recognitionRef.current.stop()
+      setListening(false)
+    }
   }
 
   async function saveEdit(date: string, mealType: string) {
@@ -87,32 +122,64 @@ export default function MealPlanPage() {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
 
-    const content = editingValue.trim()
+    const content = editingContent.trim()
+    const calories = editingCalories ? parseInt(editingCalories) || null : null
     const existing = getMeal(date, mealType)
 
     if (!content) {
-      // 空なら削除
       if (existing) {
         await supabase.from('meal_plans').delete().eq('id', existing.id)
         setMeals(prev => prev.filter(m => m.id !== existing.id))
       }
     } else if (existing) {
-      // 更新
-      await supabase.from('meal_plans').update({ content }).eq('id', existing.id)
-      setMeals(prev => prev.map(m => m.id === existing.id ? { ...m, content } : m))
+      await supabase.from('meal_plans').update({ content, calories }).eq('id', existing.id)
+      setMeals(prev => prev.map(m => m.id === existing.id ? { ...m, content, calories } : m))
     } else {
-      // 新規
       const { data } = await supabase
         .from('meal_plans')
-        .insert({ user_id: user.id, date, meal_type: mealType, content })
-        .select('id, date, meal_type, content')
+        .insert({ user_id: user.id, date, meal_type: mealType, content, calories })
+        .select('id, date, meal_type, content, calories')
         .single()
       if (data) setMeals(prev => [...prev, data as MealEntry])
     }
 
     setEditingKey(null)
-    setEditingValue('')
+    setEditingContent('')
+    setEditingCalories('')
     setSaving(false)
+  }
+
+  function startVoice() {
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
+    if (!SpeechRecognition) {
+      alert('お使いのブラウザは音声入力に対応していません。')
+      return
+    }
+    const recognition = new SpeechRecognition()
+    recognition.lang = 'ja-JP'
+    recognition.continuous = false
+    recognition.interimResults = false
+    recognitionRef.current = recognition
+
+    recognition.onstart = () => setListening(true)
+    recognition.onend = () => setListening(false)
+    recognition.onresult = (event: any) => {
+      const text = event.results[0][0].transcript
+      const name = extractMealName(text)
+      const cal = extractCalories(text)
+      if (name) setEditingContent(name)
+      if (cal) setEditingCalories(String(cal))
+    }
+    recognition.onerror = () => {
+      setListening(false)
+      alert('音声認識に失敗しました。もう一度お試しください。')
+    }
+    recognition.start()
+  }
+
+  function stopVoice() {
+    recognitionRef.current?.stop()
+    setListening(false)
   }
 
   function prevWeek() {
@@ -176,6 +243,7 @@ export default function MealPlanPage() {
             const dateStr = toDateStr(date)
             const isToday = dateStr === today
             const isWeekend = i >= 5
+            const dayCalories = getDayCalories(dateStr)
 
             return (
               <div
@@ -183,15 +251,20 @@ export default function MealPlanPage() {
                 className={`bg-white rounded-3xl p-4 shadow-sm ${isToday ? 'ring-2 ring-[#8b7355]' : ''}`}
               >
                 {/* 日付ヘッダー */}
-                <div className="flex items-center gap-2 mb-3">
-                  <span className={`text-sm font-medium ${
-                    isToday ? 'text-[#8b7355]' : isWeekend ? (i === 5 ? 'text-blue-400' : 'text-red-400') : 'text-[#3d3530]'
-                  }`}>
-                    {DAYS[i]}
-                  </span>
-                  <span className="text-xs text-[#9c8f87]">{formatDateLabel(date)}</span>
-                  {isToday && (
-                    <span className="text-[10px] bg-[#8b7355] text-white px-2 py-0.5 rounded-full">今日</span>
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <span className={`text-sm font-medium ${
+                      isToday ? 'text-[#8b7355]' : isWeekend ? (i === 5 ? 'text-blue-400' : 'text-red-400') : 'text-[#3d3530]'
+                    }`}>
+                      {DAYS[i]}
+                    </span>
+                    <span className="text-xs text-[#9c8f87]">{formatDateLabel(date)}</span>
+                    {isToday && (
+                      <span className="text-[10px] bg-[#8b7355] text-white px-2 py-0.5 rounded-full">今日</span>
+                    )}
+                  </div>
+                  {dayCalories > 0 && (
+                    <span className="text-[10px] text-[#8b7355] font-medium">{dayCalories.toLocaleString()} kcal</span>
                   )}
                 </div>
 
@@ -203,48 +276,83 @@ export default function MealPlanPage() {
                     const isEditing = editingKey === key
 
                     return (
-                      <div key={mealType} className="flex items-center gap-2">
-                        <span className="text-[10px] text-[#b8a99a] w-4 shrink-0">{mealType}</span>
-                        {isEditing ? (
-                          <div className="flex-1 flex gap-2">
-                            <input
-                              type="text"
-                              value={editingValue}
-                              onChange={e => setEditingValue(e.target.value)}
-                              onKeyDown={e => {
-                                if (e.key === 'Enter') saveEdit(dateStr, mealType)
-                                if (e.key === 'Escape') { setEditingKey(null); setEditingValue('') }
-                              }}
-                              placeholder="料理名を入力..."
-                              autoFocus
-                              className="flex-1 px-3 py-1.5 rounded-xl border border-[#e8e0d8] text-xs text-[#3d3530] focus:outline-none focus:ring-1 focus:ring-[#b8a99a] placeholder-[#c5b8b0]"
-                            />
+                      <div key={mealType}>
+                        <div className="flex items-center gap-2">
+                          <span className="text-[10px] text-[#b8a99a] w-4 shrink-0">{mealType}</span>
+                          {isEditing ? (
+                            <div className="flex-1 space-y-2">
+                              {/* 料理名入力 */}
+                              <input
+                                type="text"
+                                value={editingContent}
+                                onChange={e => setEditingContent(e.target.value)}
+                                onKeyDown={e => {
+                                  if (e.key === 'Enter') saveEdit(dateStr, mealType)
+                                  if (e.key === 'Escape') cancelEdit()
+                                }}
+                                placeholder="料理名を入力..."
+                                autoFocus
+                                className="w-full px-3 py-1.5 rounded-xl border border-[#e8e0d8] text-xs text-[#3d3530] focus:outline-none focus:ring-1 focus:ring-[#b8a99a] placeholder-[#c5b8b0]"
+                              />
+                              {/* カロリー + 音声 + ボタン */}
+                              <div className="flex gap-2">
+                                <input
+                                  type="number"
+                                  value={editingCalories}
+                                  onChange={e => setEditingCalories(e.target.value)}
+                                  placeholder="kcal"
+                                  className="w-24 px-3 py-1.5 rounded-xl border border-[#e8e0d8] text-xs text-[#3d3530] focus:outline-none focus:ring-1 focus:ring-[#b8a99a] placeholder-[#c5b8b0]"
+                                />
+                                <button
+                                  type="button"
+                                  onClick={listening ? stopVoice : startVoice}
+                                  className={`px-3 py-1.5 rounded-xl text-xs flex items-center gap-1 transition-all ${
+                                    listening
+                                      ? 'bg-red-50 text-red-400 border border-red-200 animate-pulse'
+                                      : 'bg-[#f0ebe5] text-[#6b5f58]'
+                                  }`}
+                                >
+                                  <span>{listening ? '🎙️' : '🎤'}</span>
+                                  {listening ? '停止' : '音声'}
+                                </button>
+                                <button
+                                  onClick={() => saveEdit(dateStr, mealType)}
+                                  disabled={saving}
+                                  className="flex-1 py-1.5 rounded-xl bg-[#8b7355] text-white text-xs disabled:opacity-50"
+                                >
+                                  保存
+                                </button>
+                                <button
+                                  onClick={cancelEdit}
+                                  className="px-2 py-1.5 rounded-xl bg-[#f0ebe5] text-[#9c8f87] text-xs"
+                                >
+                                  ×
+                                </button>
+                              </div>
+                              <p className="text-[10px] text-[#b8b0a8] px-1">
+                                {listening ? '聞いています...' : '例：「チャーハン500カロリー」と話してください'}
+                              </p>
+                            </div>
+                          ) : (
                             <button
-                              onClick={() => saveEdit(dateStr, mealType)}
-                              disabled={saving}
-                              className="px-3 py-1.5 rounded-xl bg-[#8b7355] text-white text-xs disabled:opacity-50"
+                              onClick={() => startEdit(dateStr, mealType)}
+                              className={`flex-1 text-left px-3 py-1.5 rounded-xl text-xs transition-colors ${
+                                meal
+                                  ? 'bg-[#fdf8f3] text-[#3d3530] border border-[#ede5d8]'
+                                  : 'text-[#c5b8b0] hover:bg-[#f9f5f1]'
+                              }`}
                             >
-                              保存
+                              {meal ? (
+                                <span className="flex items-center justify-between">
+                                  <span>{meal.content}</span>
+                                  {meal.calories && (
+                                    <span className="text-[10px] text-[#9c8f87] ml-2 shrink-0">{meal.calories} kcal</span>
+                                  )}
+                                </span>
+                              ) : '+ 追加'}
                             </button>
-                            <button
-                              onClick={() => { setEditingKey(null); setEditingValue('') }}
-                              className="px-2 py-1.5 rounded-xl bg-[#f0ebe5] text-[#9c8f87] text-xs"
-                            >
-                              ×
-                            </button>
-                          </div>
-                        ) : (
-                          <button
-                            onClick={() => startEdit(dateStr, mealType)}
-                            className={`flex-1 text-left px-3 py-1.5 rounded-xl text-xs transition-colors ${
-                              meal
-                                ? 'bg-[#fdf8f3] text-[#3d3530] border border-[#ede5d8]'
-                                : 'text-[#c5b8b0] hover:bg-[#f9f5f1]'
-                            }`}
-                          >
-                            {meal ? meal.content : '+ 追加'}
-                          </button>
-                        )}
+                          )}
+                        </div>
                       </div>
                     )
                   })}
