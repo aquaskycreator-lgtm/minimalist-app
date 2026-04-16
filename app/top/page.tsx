@@ -150,9 +150,16 @@ export default function TopPage() {
       <div className={`rounded-3xl p-5 shadow-sm mb-3 ${isDiscardComplete ? 'bg-[#f0f7ed]' : 'bg-white'}`}>
         <div className="flex items-center justify-between mb-4">
           <p className="text-xs font-medium text-[#6b5f58]">100捨てチャレンジ</p>
-          {isDiscardComplete && (
-            <span className="text-xs text-[#4a6741] bg-[#d4e8c2] px-2 py-0.5 rounded-full font-medium">達成！</span>
-          )}
+          <div className="flex items-center gap-2">
+            {isDiscardComplete && (
+              <span className="text-xs text-[#4a6741] bg-[#d4e8c2] px-2 py-0.5 rounded-full font-medium">達成！</span>
+            )}
+            {discardTotal > 0 && (
+              <button onClick={() => router.push('/discard')} className="text-xs text-[#8b7355]">
+                すべて見る →
+              </button>
+            )}
+          </div>
         </div>
 
         <div className="flex items-end gap-3 mb-4">
