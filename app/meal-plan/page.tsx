@@ -50,8 +50,20 @@ function extractCalories(text: string): number | null {
 function extractMealName(text: string): string {
   return text
     .replace(/(\d+)\s*(カロリー|kcal|キロカロリー|cal)/gi, '')
-    .replace(/[、。,.\s]+/g, '')
+    .replace(/[。.\s]+/g, '')
     .trim()
+}
+
+// 複数メニューのカロリー合計を計算
+function calcTotalCalories(content: string): number | null {
+  const items = content.split(/[、,・]+/).map(s => s.trim()).filter(Boolean)
+  let total = 0
+  let found = false
+  for (const item of items) {
+    const cal = lookupCalories(item)
+    if (cal !== null) { total += cal; found = true }
+  }
+  return found ? total : null
 }
 
 export default function MealPlanPage() {
@@ -169,11 +181,11 @@ export default function MealPlanPage() {
       const name = extractMealName(text)
       const voiceCal = extractCalories(text)
       if (name) setEditingContent(name)
-      // 音声でカロリーが言われた場合はそちらを優先、なければDBから検索
+      // 音声でカロリーが言われた場合はそちらを優先、なければDBから合計計算
       if (voiceCal) {
         setEditingCalories(String(voiceCal))
       } else if (name) {
-        const dbCal = lookupCalories(name)
+        const dbCal = calcTotalCalories(name)
         if (dbCal) setEditingCalories(String(dbCal))
       }
     }
@@ -294,9 +306,9 @@ export default function MealPlanPage() {
                                 value={editingContent}
                                 onChange={e => setEditingContent(e.target.value)}
                                 onBlur={e => {
-                                  // 料理名が入力されたらカロリーを自動検索
-                                  if (e.target.value.trim() && !editingCalories) {
-                                    const cal = lookupCalories(e.target.value.trim())
+                                  // 料理名が入力されたらカロリーを自動計算（複数対応）
+                                  if (e.target.value.trim()) {
+                                    const cal = calcTotalCalories(e.target.value.trim())
                                     if (cal) setEditingCalories(String(cal))
                                   }
                                 }}
