@@ -6,6 +6,7 @@ import { useEffect, useState, useCallback, useRef } from 'react'
 import { createClient } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
 import BottomNav from '@/components/BottomNav'
+import { lookupCalories } from '@/lib/calorie-db'
 
 type MealType = '朝' | '昼' | '夜'
 const MEAL_TYPES: MealType[] = ['朝', '昼', '夜']
@@ -166,9 +167,15 @@ export default function MealPlanPage() {
     recognition.onresult = (event: any) => {
       const text = event.results[0][0].transcript
       const name = extractMealName(text)
-      const cal = extractCalories(text)
+      const voiceCal = extractCalories(text)
       if (name) setEditingContent(name)
-      if (cal) setEditingCalories(String(cal))
+      // 音声でカロリーが言われた場合はそちらを優先、なければDBから検索
+      if (voiceCal) {
+        setEditingCalories(String(voiceCal))
+      } else if (name) {
+        const dbCal = lookupCalories(name)
+        if (dbCal) setEditingCalories(String(dbCal))
+      }
     }
     recognition.onerror = () => {
       setListening(false)
@@ -286,6 +293,13 @@ export default function MealPlanPage() {
                                 type="text"
                                 value={editingContent}
                                 onChange={e => setEditingContent(e.target.value)}
+                                onBlur={e => {
+                                  // 料理名が入力されたらカロリーを自動検索
+                                  if (e.target.value.trim() && !editingCalories) {
+                                    const cal = lookupCalories(e.target.value.trim())
+                                    if (cal) setEditingCalories(String(cal))
+                                  }
+                                }}
                                 onKeyDown={e => {
                                   if (e.key === 'Enter') saveEdit(dateStr, mealType)
                                   if (e.key === 'Escape') cancelEdit()
@@ -330,7 +344,7 @@ export default function MealPlanPage() {
                                 </button>
                               </div>
                               <p className="text-[10px] text-[#b8b0a8] px-1">
-                                {listening ? '聞いています...' : '例：「チャーハン500カロリー」と話してください'}
+                                {listening ? '聞いています...' : '料理名を入力するとカロリーを自動検索します'}
                               </p>
                             </div>
                           ) : (
