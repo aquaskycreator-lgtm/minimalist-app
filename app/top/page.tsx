@@ -2,7 +2,7 @@
 
 export const dynamic = 'force-dynamic'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import { createClient } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
 import { getTodayQuote } from '@/lib/aqua-quotes'
@@ -22,6 +22,11 @@ type DiscardItem = {
   created_at: string
 }
 
+type IdealImage = {
+  id: string
+  image_path: string
+}
+
 function relativeDate(dateStr: string): string {
   const now = new Date()
   const date = new Date(dateStr)
@@ -31,9 +36,27 @@ function relativeDate(dateStr: string): string {
   return `${diffDays}日前`
 }
 
+function calcStreak(dates: string[], today: string): number {
+  if (!dates.length) return 0
+  const dateSet = new Set(dates)
+  let streak = 0
+  const current = new Date(today)
+  while (true) {
+    const dateStr = current.toISOString().split('T')[0]
+    if (dateSet.has(dateStr)) {
+      streak++
+      current.setDate(current.getDate() - 1)
+    } else {
+      break
+    }
+  }
+  return streak
+}
+
 export default function TopPage() {
   const [loading, setLoading] = useState(true)
   const [userEmail, setUserEmail] = useState('')
+  const [userId, setUserId] = useState('')
   const [deviation, setDeviation] = useState<number | null>(null)
   const [todayRecord, setTodayRecord] = useState<DailyRecord | null>(null)
   const [memo, setMemo] = useState('')
@@ -41,6 +64,10 @@ export default function TopPage() {
   const [discardTotal, setDiscardTotal] = useState(0)
   const [discardInput, setDiscardInput] = useState('')
   const [addingDiscard, setAddingDiscard] = useState(false)
+  const [streak, setStreak] = useState(0)
+  const [idealImages, setIdealImages] = useState<IdealImage[]>([])
+  const [uploadingImage, setUploadingImage] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
   const router = useRouter()
   const supabase = createClient()
 
@@ -48,16 +75,27 @@ export default function TopPage() {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) { router.push('/auth'); return }
     setUserEmail(user.email ?? '')
+    setUserId(user.id)
 
-    const [diagRes, discardCountRes, discardRecentRes] = await Promise.all([
+    const [diagRes, discardCountRes, discardRecentRes, allDatesRes, idealImagesRes] = await Promise.all([
       supabase.from('diagnosis_results').select('deviation').eq('user_id', user.id).order('created_at', { ascending: false }).limit(1).single(),
       supabase.from('discard_items').select('*', { count: 'exact', head: true }).eq('user_id', user.id),
       supabase.from('discard_items').select('*').eq('user_id', user.id).order('created_at', { ascending: false }).limit(5),
+      supabase.from('daily_records').select('date').eq('user_id', user.id).order('date', { ascending: false }).limit(365),
+      supabase.from('ideal_room_images').select('id, image_path').eq('user_id', user.id).order('created_at', { ascending: true }),
     ])
 
     if (diagRes.data) setDeviation(diagRes.data.deviation)
     setDiscardTotal(discardCountRes.count ?? 0)
     if (discardRecentRes.data) setDiscardItems(discardRecentRes.data as DiscardItem[])
+    if (idealImagesRes.data) setIdealImages(idealImagesRes.data as IdealImage[])
+
+    // ストリーク計算
+    if (allDatesRes.data) {
+      const dates = allDatesRes.data.map((r: { date: string }) => r.date)
+      const today = new Date().toISOString().split('T')[0]
+      setStreak(calcStreak(dates, today))
+    }
 
     // 今日のメモ記録を取得/作成
     const today = new Date().toISOString().split('T')[0]
@@ -113,6 +151,43 @@ export default function TopPage() {
     router.push('/auth')
   }
 
+  async function handleImageUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file || !userId) return
+    if (idealImages.length >= 6) return
+
+    setUploadingImage(true)
+    const timestamp = Date.now()
+    const path = `${userId}/${timestamp}_${file.name}`
+
+    const { error: uploadError } = await supabase.storage
+      .from('ideal-room')
+      .upload(path, file, { upsert: false })
+
+    if (!uploadError) {
+      const { data: newImg } = await supabase
+        .from('ideal_room_images')
+        .insert({ user_id: userId, image_path: path })
+        .select('id, image_path')
+        .single()
+      if (newImg) setIdealImages(prev => [...prev, newImg as IdealImage])
+    }
+
+    setUploadingImage(false)
+    // reset input so same file can be selected again
+    if (fileInputRef.current) fileInputRef.current.value = ''
+  }
+
+  async function deleteIdealImage(id: string, imagePath: string) {
+    await supabase.storage.from('ideal-room').remove([imagePath])
+    await supabase.from('ideal_room_images').delete().eq('id', id)
+    setIdealImages(prev => prev.filter(img => img.id !== id))
+  }
+
+  function getImageUrl(path: string): string {
+    return supabase.storage.from('ideal-room').getPublicUrl(path).data.publicUrl
+  }
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -136,6 +211,9 @@ export default function TopPage() {
         <div>
           <h1 className="text-lg font-medium text-[#3d3530]">トップ</h1>
           <p className="text-xs text-[#9c8f87]">{userEmail}</p>
+          {streak >= 2 && (
+            <p className="text-xs text-[#8b7355] font-medium mt-0.5">{streak}日連続記録中</p>
+          )}
         </div>
         <button onClick={handleSignOut} className="text-xs text-[#9c8f87]">ログアウト</button>
       </div>
@@ -282,6 +360,54 @@ export default function TopPage() {
         >
           保存
         </button>
+
+        {/* 理想の部屋 画像エリア */}
+        <div className="mt-4">
+          <p className="text-[10px] text-[#9c8f87] mb-2">イメージ画像</p>
+          <div className="grid grid-cols-3 gap-2">
+            {idealImages.map(img => (
+              <div key={img.id} className="relative aspect-square rounded-2xl overflow-hidden bg-[#f0ebe5]">
+                <img
+                  src={getImageUrl(img.image_path)}
+                  alt="理想の部屋"
+                  className="w-full h-full object-cover"
+                />
+                <button
+                  onClick={() => deleteIdealImage(img.id, img.image_path)}
+                  className="absolute top-1 right-1 w-5 h-5 rounded-full bg-black/40 text-white text-xs flex items-center justify-center leading-none"
+                >
+                  ×
+                </button>
+              </div>
+            ))}
+            {idealImages.length < 6 && (
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                disabled={uploadingImage}
+                className="aspect-square rounded-2xl border-2 border-dashed border-[#d0c8c0] flex flex-col items-center justify-center gap-1 text-[#b8b0a8] hover:border-[#b8a99a] hover:text-[#9c8f87] transition-colors disabled:opacity-40"
+              >
+                {uploadingImage ? (
+                  <span className="text-[10px]">追加中...</span>
+                ) : (
+                  <>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <line x1="12" y1="5" x2="12" y2="19" />
+                      <line x1="5" y1="12" x2="19" y2="12" />
+                    </svg>
+                    <span className="text-[10px]">追加</span>
+                  </>
+                )}
+              </button>
+            )}
+          </div>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={handleImageUpload}
+          />
+        </div>
       </div>
 
       <BottomNav />

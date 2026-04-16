@@ -40,6 +40,7 @@ export default function SearchPage() {
   const [loading, setLoading] = useState(false)
   const [listening, setListening] = useState(false)
   const [isAdmin, setIsAdmin] = useState(false)
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null)
   const [unreadCount, setUnreadCount] = useState(0)
   const [addingForQuery, setAddingForQuery] = useState<string | null>(null)
   const [newKeywords, setNewKeywords] = useState('')
@@ -60,6 +61,7 @@ export default function SearchPage() {
       if (!user) { router.push('/auth'); return }
       const admin = user.email === ADMIN_EMAIL
       setIsAdmin(admin)
+      setCurrentUserId(user.id)
       if (admin) {
         const { count } = await supabase
           .from('unanswered_questions')
@@ -126,6 +128,14 @@ export default function SearchPage() {
     return bestScore > 0 ? bestAnswer : null
   }
 
+  async function saveToHistory(userId: string, question: string, answer: string) {
+    await supabase.from('search_history').insert({
+      user_id: userId,
+      question,
+      answer,
+    })
+  }
+
   async function handleSend() {
     const q = input.trim()
     if (!q || loading) return
@@ -153,6 +163,11 @@ export default function SearchPage() {
         }
       } else {
         reply = staticReply
+      }
+
+      // 相談履歴に保存
+      if (currentUserId) {
+        await saveToHistory(currentUserId, q, reply)
       }
     }
 
@@ -242,19 +257,27 @@ export default function SearchPage() {
       <div className="sticky top-0 bg-[#faf9f7] pt-6 px-4 pb-3 z-10">
         <div className="flex items-center justify-between mb-3">
           <h1 className="text-lg font-medium text-[#3d3530]">相談</h1>
-          {isAdmin && (
+          <div className="flex items-center gap-2">
             <button
-              onClick={() => router.push('/admin/qa')}
-              className="relative text-xs text-[#8b7355] bg-[#f5f0eb] px-3 py-1.5 rounded-full"
+              onClick={() => router.push('/history')}
+              className="text-xs text-[#8b7355] bg-[#f5f0eb] px-3 py-1.5 rounded-full"
             >
-              Q&A管理
-              {unreadCount > 0 && (
-                <span className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-red-400 text-white text-[10px] flex items-center justify-center font-medium">
-                  {unreadCount > 9 ? '9+' : unreadCount}
-                </span>
-              )}
+              履歴
             </button>
-          )}
+            {isAdmin && (
+              <button
+                onClick={() => router.push('/admin/qa')}
+                className="relative text-xs text-[#8b7355] bg-[#f5f0eb] px-3 py-1.5 rounded-full"
+              >
+                Q&A管理
+                {unreadCount > 0 && (
+                  <span className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-red-400 text-white text-[10px] flex items-center justify-center font-medium">
+                    {unreadCount > 9 ? '9+' : unreadCount}
+                  </span>
+                )}
+              </button>
+            )}
+          </div>
         </div>
         {/* モード切り替え */}
         <div className="flex bg-[#f0ebe5] rounded-2xl p-1">
