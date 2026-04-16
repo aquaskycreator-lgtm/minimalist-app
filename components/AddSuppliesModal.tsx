@@ -149,27 +149,6 @@ export default function AddSuppliesModal({ onClose, onAdded }: Props) {
           <button onClick={onClose} className="text-[#9c8f87] text-lg leading-none">×</button>
         </div>
 
-        {/* 音声入力ボタン */}
-        <div className="mb-5">
-          <button
-            type="button"
-            onClick={listening ? stopVoice : startVoice}
-            className={`w-full py-3 rounded-2xl text-sm font-medium flex items-center justify-center gap-2 transition-all ${
-              listening
-                ? 'bg-red-50 text-red-400 border-2 border-red-200 animate-pulse'
-                : 'bg-[#f0ebe5] text-[#6b5f58] hover:bg-[#e8e0d8]'
-            }`}
-          >
-            <span className="text-base">{listening ? '🎙️' : '🎤'}</span>
-            {listening ? '聞いています... タップで停止' : '音声で入力する'}
-          </button>
-          {transcript ? (
-            <p className="text-xs text-[#9c8f87] mt-2 px-2">認識: 「{transcript}」</p>
-          ) : (
-            <p className="text-xs text-[#b8b0a8] mt-1.5 px-2">例：「シャンプー2本、残り少ない」と話してください</p>
-          )}
-        </div>
-
         {/* クイック追加 */}
         {recentItems.length > 0 && (
           <div className="mb-4">
@@ -258,6 +237,27 @@ export default function AddSuppliesModal({ onClose, onAdded }: Props) {
               placeholder="例：詰め替えタイプ"
               className="w-full px-4 py-3 rounded-2xl border border-[#e8e0d8] text-sm text-[#3d3530] focus:outline-none focus:ring-2 focus:ring-[#b8a99a] placeholder-[#c5b8b0]"
             />
+          </div>
+
+          {/* 音声入力ボタン */}
+          <div>
+            <button
+              type="button"
+              onClick={listening ? stopVoice : startVoice}
+              className={`w-full py-3 rounded-2xl text-sm font-medium flex items-center justify-center gap-2 transition-all ${
+                listening
+                  ? 'bg-red-50 text-red-400 border-2 border-red-200 animate-pulse'
+                  : 'bg-[#f0ebe5] text-[#6b5f58] hover:bg-[#e8e0d8]'
+              }`}
+            >
+              <span className="text-base">{listening ? '🎙️' : '🎤'}</span>
+              {listening ? '聞いています... タップで停止' : '音声で入力する'}
+            </button>
+            {transcript ? (
+              <p className="text-xs text-[#9c8f87] mt-2 px-2">認識: 「{transcript}」</p>
+            ) : (
+              <p className="text-xs text-[#b8b0a8] mt-1.5 px-2">例：「シャンプー2本、残り少ない」と話してください</p>
+            )}
           </div>
 
           <button
