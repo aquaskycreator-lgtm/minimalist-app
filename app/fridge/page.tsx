@@ -96,6 +96,12 @@ export default function FridgePage() {
               <h1 className="text-lg font-medium text-[#3d3530]">食料品</h1>
               <p className="text-xs text-[#9c8f87]">{userEmail}</p>
             </div>
+            <button
+              onClick={() => router.push('/meal-plan')}
+              className="px-3 py-1.5 rounded-full bg-[#f0ebe5] text-[#6b5f58] text-xs shrink-0"
+            >
+              献立
+            </button>
             {items.some(i => i.need_to_buy) && (
               <button
                 onClick={() => setShowShopping(true)}
