@@ -225,21 +225,17 @@ export default function TopPage() {
         )}
       </div>
 
-      {/* 理想の部屋、理想の暮らし */}
-      <div className="bg-white rounded-3xl p-5 shadow-sm mb-3">
-        <p className="text-xs font-medium text-[#6b5f58] mb-3">理想の部屋、理想の暮らし</p>
-        <textarea
-          value={memo}
-          onChange={e => setMemo(e.target.value)}
-          placeholder="どんな部屋で、どんな暮らしがしたいですか？"
-          rows={4}
-          className="w-full px-4 py-3 rounded-2xl border border-[#e8e0d8] text-sm text-[#3d3530] focus:outline-none focus:ring-2 focus:ring-[#b8a99a] placeholder-[#c5b8b0] resize-none"
-        />
-        <button
-          onClick={saveMemo}
-          className="mt-2 w-full py-2.5 rounded-2xl bg-[#f0ebe5] text-[#6b5f58] text-xs font-medium"
-        >
-          保存
+      {/* クイックリンク */}
+      <div className="grid grid-cols-2 gap-3 mb-3">
+        <button onClick={() => router.push('/search')} className="bg-white rounded-2xl p-4 shadow-sm flex flex-col items-center gap-2">
+          <img src="/aqua.png" alt="AQUA" className="w-10 h-10 rounded-full object-cover" />
+          <span className="text-xs font-medium text-[#3d3530]">AQUAに相談</span>
+          <span className="text-[10px] text-[#9c8f87]">在庫・片付けの悩み</span>
+        </button>
+        <button onClick={() => router.push('/diagnosis')} className="bg-white rounded-2xl p-4 shadow-sm flex flex-col items-center gap-2">
+          <span className="text-3xl">📊</span>
+          <span className="text-xs font-medium text-[#3d3530]">片付け診断</span>
+          <span className="text-[10px] text-[#9c8f87]">偏差値を測る</span>
         </button>
       </div>
 
@@ -263,17 +259,21 @@ export default function TopPage() {
         )}
       </div>
 
-      {/* クイックリンク */}
-      <div className="grid grid-cols-2 gap-3 mb-3">
-        <button onClick={() => router.push('/search')} className="bg-white rounded-2xl p-4 shadow-sm flex flex-col items-center gap-2">
-          <img src="/aqua.png" alt="AQUA" className="w-10 h-10 rounded-full object-cover" />
-          <span className="text-xs font-medium text-[#3d3530]">AQUAに相談</span>
-          <span className="text-[10px] text-[#9c8f87]">在庫・片付けの悩み</span>
-        </button>
-        <button onClick={() => router.push('/diagnosis')} className="bg-white rounded-2xl p-4 shadow-sm flex flex-col items-center gap-2">
-          <span className="text-3xl">📊</span>
-          <span className="text-xs font-medium text-[#3d3530]">片付け診断</span>
-          <span className="text-[10px] text-[#9c8f87]">偏差値を測る</span>
+      {/* 理想の部屋、理想の暮らし */}
+      <div className="bg-white rounded-3xl p-5 shadow-sm mb-3">
+        <p className="text-xs font-medium text-[#6b5f58] mb-3">理想の部屋、理想の暮らし</p>
+        <textarea
+          value={memo}
+          onChange={e => setMemo(e.target.value)}
+          placeholder="どんな部屋で、どんな暮らしがしたいですか？"
+          rows={4}
+          className="w-full px-4 py-3 rounded-2xl border border-[#e8e0d8] text-sm text-[#3d3530] focus:outline-none focus:ring-2 focus:ring-[#b8a99a] placeholder-[#c5b8b0] resize-none"
+        />
+        <button
+          onClick={saveMemo}
+          className="mt-2 w-full py-2.5 rounded-2xl bg-[#f0ebe5] text-[#6b5f58] text-xs font-medium"
+        >
+          保存
         </button>
       </div>
 
