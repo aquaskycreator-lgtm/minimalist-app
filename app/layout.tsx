@@ -4,6 +4,15 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "ミニマリスト＆片付けアプリ",
   description: "冷蔵庫・クローゼット・日用品の在庫管理アプリ",
+  icons: {
+    apple: "/icon.png",
+    icon: "/icon.png",
+  },
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "ミニマリスト",
+  },
 };
 
 export const viewport: Viewport = {
